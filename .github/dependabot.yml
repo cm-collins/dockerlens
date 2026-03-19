@@ -1,12 +1,62 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Dependabot version updates for DockerLens
+# Tauri app — monitors both Cargo (Rust) and npm (frontend) ecosystems
 
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+
+  # ─── Rust / Cargo ────────────────────────────────────────────────────────────
+  - package-ecosystem: "cargo"
+    directory: "/src-tauri"        # Cargo.toml lives here
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Africa/Nairobi"
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 5
+    ignore:
+      # Tauri itself — update manually to avoid breaking changes
+      - dependency-name: "tauri"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tauri-build"
+        update-types: ["version-update:semver-major"]
 
+  # ─── Node / npm (Frontend — React + Vite) ────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"                 # package.json lives at root
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Africa/Nairobi"
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 5
+    ignore:
+      # Major version bumps on core UI libs — update manually
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  # ─── GitHub Actions ──────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"                 # .github/workflows/
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Africa/Nairobi"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"
+    open-pull-requests-limit: 3
