@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "lint": "tsc -p tsconfig.json --noEmit",
     "build": "tsc && vite build",
+    "test": "pnpm run build",
     "preview": "vite preview",
     "tauri": "tauri"
   },

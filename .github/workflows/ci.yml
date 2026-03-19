@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend lint (tsc --noEmit)
+        run: pnpm run lint
+
+      - name: Frontend test (build gate)
+        run: pnpm run test
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cargo tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Cargo fmt check
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
+      - name: Cargo clippy (deny warnings)
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+
+      - name: Cargo audit (vulnerability scan)
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit --file src-tauri/Cargo.lock --deny warnings
+

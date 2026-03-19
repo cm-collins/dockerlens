@@ -7,32 +7,28 @@ assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**Description**
+Briefly describe the bug (what happened and where in dockerlens).
 
 **To Reproduce**
 Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+1.
+2.
+3.
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+What did you expect to happen?
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Actual behavior**
+What actually happened? Include error messages verbatim if you see any.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+**docker & environment**
+- OS (e.g. Ubuntu 24.04): 
+- Docker Engine version:
+- dockerlens version / install method (package, build from source, etc.):
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Screenshots / Logs**
+If applicable, attach screenshots or paste relevant logs.
 
 **Additional context**
-Add any other context about the problem here.
+Anything else that helps (workaround tried, specific container/image/volume/network, etc.).

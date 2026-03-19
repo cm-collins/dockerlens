@@ -1,0 +1,10 @@
+#
+# Code owners ensure the right people must approve before merging.
+#
+# GitHub looks for this file in `.github/CODEOWNERS`.
+#
+
+* @cm-collins
+/src-tauri/ @cm-collins
+/src/ @cm-collins
+

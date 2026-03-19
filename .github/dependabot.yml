@@ -8,9 +8,8 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/src-tauri"        # Cargo.toml lives here
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
+      interval: "daily"
+      time: "00:00"
       timezone: "Africa/Nairobi"
     labels:
       - "dependencies"
@@ -29,9 +28,8 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"                 # package.json lives at root
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
+      interval: "daily"
+      time: "00:00"
       timezone: "Africa/Nairobi"
     labels:
       - "dependencies"
@@ -50,9 +48,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"                 # .github/workflows/
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
+      interval: "daily"
+      time: "00:00"
       timezone: "Africa/Nairobi"
     labels:
       - "dependencies"
