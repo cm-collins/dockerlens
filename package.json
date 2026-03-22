@@ -9,7 +9,8 @@
     "build": "tsc && vite build",
     "test": "pnpm run build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "version:bump": "bash scripts/bump-version.sh"
   },
   "dependencies": {
     "react": "^19.1.0",
