@@ -1,6 +1,7 @@
 # Tauri 2.0 — Best Practices
 
 > **Applies to:** `src-tauri/tauri.conf.json` · `src-tauri/capabilities/` · `src-tauri/src/main.rs`
+> **Repo today:** capabilities live in `capabilities/default.json` (`core:default`, `opener:default`). Examples below (e.g. custom `docker:allow-*` permissions) are **target-state** for when those commands exist — do not copy verbatim until implemented.
 > **Tauri version:** 2.x (audited by Radically Open Security, funded by NLNet/NGI)
 > **Last reviewed:** March 2026
 > **References:** Tauri v2 Security Docs · Tauri 2.0 Stable Release Notes

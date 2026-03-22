@@ -1,6 +1,6 @@
 # Supabase — Best Practices
 
-> **Applies to:** `src/lib/supabase.ts` · Supabase project dashboard · Database schema
+> **Applies to:** Supabase project dashboard · database schema · future `src/lib/supabase.ts` (file does not exist in the scaffold yet — add when optional auth/settings sync ships).
 > **Version:** supabase-js v2 · PostgreSQL 15+
 > **Last reviewed:** March 2026
 > **References:** Supabase Production Checklist · Supabase RLS Docs · Supabase Security Guide

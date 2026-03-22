@@ -4,6 +4,12 @@
 > **Last reviewed:** March 2026
 > **References:** GitHub Security Hardening Guide · OWASP CI/CD Security
 
+### What this repo runs today
+
+Single workflow **`.github/workflows/ci.yml`**, job **`build-and-test`**: checkout → Node 20 + pnpm → `pnpm run lint` → `pnpm run test` → Rust stable → `cargo test` / `fmt` / `clippy` / `cargo audit` on `src-tauri/Cargo.lock`.
+
+Sections below (extra jobs, Vitest, release signing, `pull_request_target` comparisons, etc.) are **patterns and templates** for growth — they are not all present in that file yet.
+
 ---
 
 ## Table of Contents
@@ -211,9 +217,12 @@ container:
 
 ## 6. Build Pipeline Structure
 
-### Full DockerLens CI workflow
+### Sample multi-job pipeline (not in repo today)
+
+**Today:** only `.github/workflows/ci.yml` with job `build-and-test`. The workflow below is a **template** for when you add release builds (Linux bundles, Fedora, tagged releases). Adjust action SHAs and runners to match your security policy.
+
 ```yaml
-# .github/workflows/build.yml
+# Example: .github/workflows/build.yml (future)
 
 name: Build & Release
 
@@ -228,9 +237,9 @@ permissions:
   contents: read
 
 jobs:
-  # ── Job 1: Lint & Test ──────────────────────────────────────────────────────
-  lint-and-test:
-    name: Lint & Test
+  # ── Job 1: same role as today's ci.yml build-and-test ───────────────────────
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -261,14 +270,15 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
-      - name: TypeScript check
-        run: pnpm tsc --noEmit
+      - name: Frontend lint (TypeScript)
+        run: pnpm run lint
 
-      - name: ESLint
-        run: pnpm lint
+      - name: Frontend test (build gate)
+        run: pnpm run test
 
-      - name: Frontend tests
-        run: pnpm vitest run
+      # When Vitest is configured, add e.g.:
+      # - name: Unit tests
+      #   run: pnpm exec vitest run
 
       - name: Install Tauri system deps
         run: |
@@ -288,14 +298,14 @@ jobs:
 
       - name: Security audit
         run: |
-          cargo install cargo-audit --quiet
-          cargo audit --manifest-path src-tauri/Cargo.toml
+          cargo install cargo-audit --locked
+          cargo audit --file src-tauri/Cargo.lock --deny warnings
 
   # ── Job 2: Build Ubuntu (.deb + .AppImage + Flatpak) ──────────────────────
   build-ubuntu:
     name: Build Ubuntu
     runs-on: ubuntu-22.04
-    needs: lint-and-test
+    needs: build-and-test
     if: github.event_name == 'push'
     permissions:
       contents: read
@@ -340,7 +350,7 @@ jobs:
   build-fedora:
     name: Build Fedora RPM
     runs-on: ubuntu-22.04
-    needs: lint-and-test
+    needs: build-and-test
     if: github.event_name == 'push'
 
     container:
@@ -519,14 +529,14 @@ v2.0.0   → major — breaking changes
 
 ### Before merging any PR
 
-- [ ] `lint-and-test` job passes
+- [ ] Required CI job passes (today: `build-and-test` in `ci.yml`)
 - [ ] No new secrets in code (search: `git grep -i "password\|secret\|token\|key"`)
 - [ ] No `pull_request_target` triggers added without review
 - [ ] New workflow steps use pinned action SHAs
 
 ### Before every release
 
-- [ ] All three build jobs pass
+- [ ] All release pipeline jobs pass (when a multi-job workflow like §6 exists — e.g. test + Ubuntu + Fedora + release)
 - [ ] Artifacts are GPG signed
 - [ ] SHA256 checksums published
 - [ ] `latest.json` generated for auto-updater

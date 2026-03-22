@@ -1,7 +1,7 @@
 # React + TypeScript — Best Practices
 
 > **Applies to:** `src/` — all React frontend code
-> **Versions:** React 18 · TypeScript 5 · Vite 5
+> **Versions (repo today):** React 19 · TypeScript ~5.9 · Vite 8 — align this line when upgrading.
 > **Last reviewed:** March 2026
 > **References:** Vercel React Best Practices · Snyk Security Guide · Sitepoint TypeScript Guide
 
@@ -25,6 +25,22 @@
 ## 1. TypeScript Configuration
 
 ### `tsconfig.json` — strict mode is non-negotiable
+
+The repo root `tsconfig.json` is the source of truth. It includes **bundler/Vite** options (`moduleResolution`, `noEmit`, `allowImportingTsExtensions`, etc.) plus the strict flags below.
+
+**Strict flags enforced in this project today:**
+
+| Option | Why |
+|---|---|
+| `"strict": true` | Enables `strictNullChecks`, `strictFunctionTypes`, `noImplicitAny` and more |
+| `"noUnusedLocals"` | Catches dead code at compile time |
+| `"noUnusedParameters"` | Unused parameters fail the build |
+| `"noFallthroughCasesInSwitch"` | Switch fall-through must be explicit |
+| `"noUncheckedIndexedAccess"` | Index access returns `T \| undefined` — forces null checks |
+| `"exactOptionalPropertyTypes"` | Distinguishes `{ a?: string }` from `{ a: string \| undefined }` |
+
+Minimal excerpt (see full file for `include`, `references`, and Vite-specific options):
+
 ```json
 {
   "compilerOptions": {
@@ -39,19 +55,11 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "skipLibCheck": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "noEmit": true
   }
 }
 ```
-
-Key settings explained:
-
-| Option | Why |
-|---|---|
-| `"strict": true` | Enables `strictNullChecks`, `strictFunctionTypes`, `noImplicitAny` and more |
-| `"noUnusedLocals"` | Catches dead code at compile time |
-| `"noUncheckedIndexedAccess"` | Array/object access returns `T \| undefined` — forces null checks |
-| `"exactOptionalPropertyTypes"` | Distinguishes `{ a?: string }` from `{ a: string \| undefined }` |
 
 ---
 

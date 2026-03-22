@@ -37,7 +37,7 @@ test/container-list-unit-tests   ← tests only
 | Rule | Setting |
 |---|---|
 | Require PR before merging to `main` | ✅ |
-| Require status checks to pass | ✅ `lint-and-test` job |
+| Require status checks to pass | ✅ required CI job (see `.github/workflows/ci.yml` — today: `build-and-test`) |
 | Require branches to be up to date | ✅ |
 | No direct push to `main` | ✅ |
 | Require linear history | ✅ (use rebase, not merge commits) |
@@ -143,9 +143,8 @@ How did you test this? What edge cases did you consider?
 
 - [ ] `cargo clippy` — zero warnings
 - [ ] `cargo test` — all pass
-- [ ] `pnpm tsc --noEmit` — zero errors
-- [ ] `pnpm lint` — zero errors
-- [ ] `pnpm vitest run` — all pass
+- [ ] `pnpm run lint` — TypeScript clean (`tsc --noEmit`)
+- [ ] `pnpm run test` — passes (today: production build gate; add Vitest when configured)
 - [ ] No secrets in code
 - [ ] Documentation updated if needed
 ```
@@ -164,7 +163,7 @@ How did you test this? What edge cases did you consider?
 
 ### Dependabot handles routine updates automatically
 
-Configured in `.github/dependabot.yml` to run weekly for:
+Configured in `.github/dependabot.yml` to run **daily** for:
 - Cargo (Rust) — Mondays 09:00 Africa/Nairobi
 - npm (frontend) — Mondays 09:00 Africa/Nairobi
 - GitHub Actions — Mondays 09:00 Africa/Nairobi
@@ -194,9 +193,9 @@ When `cargo audit` or Dependabot reports a vulnerability:
 |---|---|
 | New Tauri command | Rust doc comment on the function |
 | New React component | Props interface with JSDoc comments |
-| New architecture decision | Update `docs/architecture/ARCHITECTURE.md` |
-| New feature | Update `docs/requirements/PRD.md` |
-| New dependency | Update `docs/requirements/TRD.md` dependency table |
+| New architecture decision | Update `docs/Archtecture/ARCHITECTURE.md` |
+| New feature | Update `docs/Requirements/PRD.md` |
+| New dependency | Update `docs/Requirements/TRD.md` dependency table |
 | Breaking API change | Update TRD + `CHANGELOG.md` |
 
 ### Keep `CHANGELOG.md` up to date
@@ -355,16 +354,15 @@ Run this before every PR and release:
 
 ### Every PR
 ```bash
-# Rust
+# Rust (same shape as CI)
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml
-cargo audit --manifest-path src-tauri/Cargo.toml
+cargo audit --file src-tauri/Cargo.lock --deny warnings
 
 # Frontend
-pnpm tsc --noEmit
-pnpm lint
-pnpm vitest run
+pnpm run lint
+pnpm run test
 
 # Security
 git grep -i "password\|secret\|private_key\|service_role" -- '*.ts' '*.tsx' '*.rs'
