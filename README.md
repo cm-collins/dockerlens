@@ -6,10 +6,10 @@ No VM. No subscription. No terminal required.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Built with Tauri](https://img.shields.io/badge/Built%20with-Tauri%202.0-24C8D8?logo=tauri)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange?logo=rust)](https://www.rust-lang.org)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
 [![Platform](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)](https://kernel.org)
 
-[Download](#-installation) · [Screenshots](#-screenshots) · [Contributing](#-contributing) · [Roadmap](#-roadmap)
+[Download](#-installation) · [Screenshots](#-screenshots) · [Documentation](#-documentation) · [Contributing](#-contributing) · [Roadmap](#-roadmap)
 
 ---
 
@@ -36,7 +36,21 @@ It connects directly to your Docker Engine via the Unix socket (`/var/run/docker
 
 ## 📸 Screenshots
 
-> Screenshots coming with v1.0 beta release.
+These images are **UI design mockups** from [`docs/Design/samples/`](docs/Design/samples/). They show the target v1.0 experience; the shipping app will converge on this look as features land.
+
+| Onboarding — welcome | Dashboard — system overview |
+|:---:|:---:|
+| ![Welcome — first-run onboarding](docs/Design/samples/Screenshot%20From%202026-03-21%2023-19-47.png) | ![Dashboard with resource summary and suggestions](docs/Design/samples/Screenshot%20From%202026-03-21%2023-20-50.png) |
+
+| Containers — overview & stats | Containers — inspect (JSON) |
+|:---:|:---:|
+| ![Containers list with detail pane — Overview tab](docs/Design/samples/Screenshot%20From%202026-03-21%2023-21-18.png) | ![Containers — Inspect tab with container JSON](docs/Design/samples/Screenshot%20From%202026-03-21%2023-22-03.png) |
+
+| Volumes | Suggestions |
+|:---:|:---:|
+| ![Volumes list with usage and unused volume](docs/Design/samples/Screenshot%20From%202026-03-21%2023-22-45.png) | ![Suggestions — active recommendations](docs/Design/samples/Screenshot%20From%202026-03-21%2023-23-42.png) |
+
+More samples live in [`docs/Design/samples/`](docs/Design/samples/).
 
 ---
 
@@ -245,10 +259,11 @@ pnpm tauri build
 ```
 
 ### Project structure
+Target layout as the app grows (some paths are not created yet):
 ```
 dockerlens/
 ├── src/                        # React + TypeScript frontend
-│   ├── components/             # UI components
+│   ├── components/             # UI components (add as needed)
 │   ├── pages/                  # Screen-level components
 │   ├── store/                  # Zustand state slices
 │   ├── hooks/                  # Custom React hooks
@@ -274,16 +289,30 @@ dockerlens/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── Docs/                       # Project documentation
-│   ├── requirements/           # PRD + TRD
-│   ├── architecture/           # System diagrams
-│   ├── design/                 # UI specs + mockup
-│   └── best-practices/         # Per-tech best practices
+├── docs/                       # Project documentation (see Documentation below)
+│   ├── Requirements/           # PRD + TRD
+│   ├── Archtecture/            # ARCHITECTURE.md + diagrams (PNG/PDF)
+│   ├── Design/                 # Design system, screens, mockups, samples
+│   └── best-practices/         # Per-tech contributor guides
 │
 ├── package.json
-├── vite.config.ts
-└── tailwind.config.ts
+└── vite.config.ts
 ```
+
+Add `tailwind.config.ts` and related tooling when you wire up Tailwind (see [`docs/Requirements/TRD.md`](docs/Requirements/TRD.md)).
+
+---
+
+## 📚 Documentation
+
+In-repo docs live under [`docs/`](docs/). Highlights:
+
+| Area | Documents |
+|------|-----------|
+| **Requirements** | [Product requirements (PRD)](docs/Requirements/PRD.md) · [Technical requirements (TRD)](docs/Requirements/TRD.md) |
+| **Architecture** | [Architecture overview](docs/Archtecture/ARCHITECTURE.md) · diagrams: [system overview](docs/Archtecture/DockerLens%20%E2%80%94%20System%20Overview.png), [screen map](docs/Archtecture/DockerLens%20%E2%80%94%20Screen%20Map.png), [user flows](docs/Archtecture/DockerLens%20%E2%80%94%20All%20User%20Flows.png) (PDFs in the same folder) |
+| **Design** | [Design system](docs/Design/DESIGN-SYSTEM.md) · [Screen specs](docs/Design/SCREENS.md) · [Mockup notes](docs/Design/MOCKUP.md) · [UI samples](docs/Design/samples/) |
+| **Best practices** | [Index](docs/best-practices/README.md) — Tauri, Rust, React/TypeScript, Supabase, GitHub Actions, and general guidelines |
 
 ---
 
@@ -306,7 +335,31 @@ Look for issues tagged [`good first issue`](https://github.com/cm-collins/docker
 
 ## 📋 Roadmap
 
-See the full phased roadmap in the [project Notion workspace](https://www.notion.so/327412df037681d7a661ed8d478ad6e2) or the [GitHub Projects board](https://github.com/cm-collins/dockerlens/projects).
+Roadmap and execution are tracked in **GitHub**, not Linear or an external PM tool:
+
+| Where | Link / use |
+|-------|------------|
+| **Project board** | [**dockerlens** (Kanban)](https://github.com/users/cm-collins/projects/1) — primary roadmap view. [All projects](https://github.com/cm-collins?tab=projects) if you use more than one board. |
+| **Issues** | [cm-collins/dockerlens/issues](https://github.com/cm-collins/dockerlens/issues) |
+| **Pull requests** | [cm-collins/dockerlens/pulls](https://github.com/cm-collins/dockerlens/pulls) |
+
+**GitHub CLI** (optional — needs **`read:project`** once: `gh auth refresh -s read:project`):
+
+```bash
+# Print this board’s URL (JSON is {"projects":[...]} — filter with .projects[])
+gh project list --owner cm-collins --format json -q '.projects[] | select(.title=="dockerlens") | .url'
+
+# Same via jq: … | jq -r '.projects[] | select(.title=="dockerlens") | .url'
+
+# Open in browser from the shell:
+BOARD_URL="$(gh project list --owner cm-collins --format json -q '.projects[] | select(.title=="dockerlens") | .url')"
+(command -v xdg-open >/dev/null && xdg-open "$BOARD_URL") || (command -v open >/dev/null && open "$BOARD_URL") || true
+
+gh project list --owner cm-collins          # table listing
+gh project list --owner cm-collins --web    # projects UI in browser
+```
+
+If `gh project list` errors with missing `read:project`, complete `gh auth refresh -s read:project` (browser/device flow), then retry.
 
 ---
 
