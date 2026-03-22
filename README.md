@@ -289,11 +289,16 @@ dockerlens/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── database/                   # Supabase SQL migrations
-│   ├── 001_schema.sql          # Tables, constraints, indexes
-│   ├── 002_rls.sql             # Row-level security policies
-│   ├── 003_functions.sql       # Functions, triggers, automation
-│   └── 004_seed_dev.sql        # Dev seed data — never run in production
+├── scripts/                    # Automation scripts
+│   ├── bump-version.sh         # Atomic version bump across all 3 files
+│   └── db/                     # Supabase SQL migrations
+│       ├── 001_schema.sql      # Tables, constraints, indexes
+│       ├── 002_rls.sql         # Row-level security policies
+│       ├── 003_functions.sql   # Functions, triggers, automation
+│       ├── 004_seed_dev.sql    # Dev seed data — never run in production
+│       ├── validate-migrations.sh
+│       ├── apply-migrations.sh
+│       └── rollback-migrations.sh
 │
 ├── docs/                       # Project documentation (see Documentation below)
 │   ├── Requirements/           # PRD + TRD
@@ -319,7 +324,7 @@ In-repo docs live under [`docs/`](docs/). Highlights:
 | **Architecture** | [Architecture overview](docs/Archtecture/ARCHITECTURE.md) · diagrams: [system overview](docs/Archtecture/DockerLens%20%E2%80%94%20System%20Overview.png), [screen map](docs/Archtecture/DockerLens%20%E2%80%94%20Screen%20Map.png), [user flows](docs/Archtecture/DockerLens%20%E2%80%94%20All%20User%20Flows.png) (PDFs in the same folder) |
 | **Design** | [Design system](docs/Design/DESIGN-SYSTEM.md) · [Screen specs](docs/Design/SCREENS.md) · [Mockup notes](docs/Design/MOCKUP.md) · [UI samples](docs/Design/samples/) |
 | **Best practices** | [Index](docs/best-practices/README.md) — Tauri, Rust, React/TypeScript, Supabase, GitHub Actions, and general guidelines |
-| **Database** | [Migrations guide](database/README.md) — Supabase SQL migrations, execution order and rules |
+| **Database** | [Migrations guide](scripts/db/README.md) — Supabase SQL migrations, execution order and rules |
 
 ---
 
