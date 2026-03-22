@@ -1,6 +1,6 @@
-// Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    dockerlens_lib::run()
+    env_logger::init();
+    dockerlens_lib::run();
 }
