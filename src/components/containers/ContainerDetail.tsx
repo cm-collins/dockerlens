@@ -1,0 +1,1 @@
+// Container detail component
