@@ -1,76 +1,73 @@
-import { useEffect, useState } from "react";
-import { docker } from "@/lib/tauri";
-import type { ContainerSummary } from "@/types/docker";
+import { ThemeProvider } from "@/components/theme-provider";
+import { useAppStore } from "@/store/app.store";
+import { TitleBar } from "@/components/layout/TitleBar";
+import { TopBar } from "@/components/layout/TopBar";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { ContainersPage } from "@/pages/ContainersPage";
+import { useContainers } from "@/hooks/useContainers";
 
-const STATE_COLORS: Record<string, string> = {
-  running: "bg-green-500",
-  exited: "bg-red-500",
-  paused: "bg-yellow-500",
-  restarting: "bg-blue-500",
+const SCREEN_TITLES: Record<string, { title: string; subtitle: string }> = {
+  containers: { title: "Containers", subtitle: "" },
+  images: { title: "Images", subtitle: "Coming in Phase 3" },
+  volumes: { title: "Volumes", subtitle: "Coming in Phase 4" },
+  networks: { title: "Networks", subtitle: "Coming in Phase 4" },
+  suggestions: { title: "Suggestions", subtitle: "Optimization recommendations" },
+  settings: { title: "Settings", subtitle: "Preferences & daemon control" },
 };
 
-const STATE_TEXT_COLORS: Record<string, string> = {
-  running: "text-green-500",
-  exited: "text-red-500",
-  paused: "text-yellow-500",
-  restarting: "text-blue-500",
-};
+function AppContent() {
+  const { screen } = useAppStore();
+  const { data: containers = [], refetch } = useContainers();
+  
+  const running = containers.filter((c) => c.state.toLowerCase() === "running").length;
+  const meta = SCREEN_TITLES[screen] ?? { title: screen, subtitle: "" };
 
-export default function App() {
-  const [containers, setContainers] = useState<ContainerSummary[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const subtitle =
+    screen === "containers"
+      ? `${running} running · ${containers.length} total`
+      : meta.subtitle;
 
-  useEffect(() => {
-    docker
-      .listContainers()
-      .then(setContainers)
-      .catch((e: unknown) => setError(String(e)))
-      .finally(() => setLoading(false));
-  }, []);
+  // Wrap refetch to match expected signature
+  const handleRefresh = screen === "containers" ? () => { refetch(); } : undefined;
+  const refreshProps = handleRefresh ? { onRefresh: handleRefresh } : {};
 
   return (
-    <div className="w-screen h-screen bg-[#080B14] text-[#E8EDF8] font-['DM_Sans',system-ui,sans-serif] p-6 overflow-auto">
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#1E2535]">
-        <span className="text-[28px]">🐳</span>
-        <span className="text-lg font-bold">DockerLens</span>
-        <span className="ml-auto bg-[#1E2535] px-2.5 py-0.5 rounded-[10px] text-xs text-[#8B96B0]">
-          {containers.length} containers
-        </span>
-      </div>
+    <div className="w-screen h-screen flex flex-col overflow-hidden fade-in">
+      <TitleBar title={`DockerLens — ${meta.title}`} />
 
-      {loading && <p className="text-[#4A5568] text-[13px]">Connecting to Docker…</p>}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
 
-      {error && (
-        <div className="bg-[#3D1515] border border-[#F0525230] rounded-[9px] p-3.5 text-[#F05252] text-[13px] mb-4">
-          <strong>Docker connection failed</strong>
-          <p>{error}</p>
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <TopBar 
+            title={meta.title} 
+            subtitle={subtitle}
+            {...refreshProps}
+          />
+
+          <main className="flex-1 overflow-hidden">
+            {screen === "containers" && <ContainersPage />}
+
+            {screen !== "containers" && (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center space-y-3">
+                  <div className="text-5xl opacity-20">🔜</div>
+                  <h3 className="text-lg font-semibold">{meta.title}</h3>
+                  <p className="text-sm text-muted-foreground">{meta.subtitle}</p>
+                </div>
+              </div>
+            )}
+          </main>
         </div>
-      )}
-
-      {!loading && !error && containers.length === 0 && (
-        <p className="text-[#4A5568] text-[13px]">No containers found.</p>
-      )}
-
-      <div className="flex flex-col gap-2">
-        {containers.map((c) => (
-          <div
-            key={c.id}
-            className="flex items-center gap-3 p-3 bg-[#0E1220] rounded-[9px] border border-[#1E2535]"
-          >
-            <span
-              className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                STATE_COLORS[c.state] ?? "bg-gray-600"
-              }`}
-            />
-            <span className="font-semibold text-[13px] flex-[0_0_180px]">{c.name}</span>
-            <span className="text-[#4A5568] text-[11px] font-mono flex-1">{c.image}</span>
-            <span className={`text-xs ${STATE_TEXT_COLORS[c.state] ?? "text-[#8B96B0]"}`}>
-              {c.status}
-            </span>
-          </div>
-        ))}
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider defaultTheme="dark" storageKey="dockerlens-theme">
+      <AppContent />
+    </ThemeProvider>
   );
 }
