@@ -1,5 +1,6 @@
-use bollard::container::ListContainersOptions;
-use bollard::models::{ContainerSummary as BollardContainer, PortTypeEnum};
+use bollard::models::ContainerSummary as BollardContainer;
+use bollard::service::PortSummary;
+use bollard::query_parameters::ListContainersOptionsBuilder;
 use serde::Serialize;
 
 use crate::docker::client::DockerClient;
@@ -30,10 +31,9 @@ pub struct PortBinding {
 
 /// Returns all containers — running, stopped and paused.
 pub async fn list_all(client: &DockerClient) -> Result<Vec<ContainerSummary>, String> {
-    let options = ListContainersOptions::<String> {
-        all: true,
-        ..Default::default()
-    };
+    let options = ListContainersOptionsBuilder::default()
+        .all(true)
+        .build();
 
     let raw = client
         .inner()
@@ -69,26 +69,20 @@ fn into_summary(c: BollardContainer) -> Option<ContainerSummary> {
         name,
         image: c.image.unwrap_or_default(),
         status: c.status.unwrap_or_default(),
-        state: c.state.unwrap_or_default(),
+        state: c.state.map(|s| format!("{:?}", s)).unwrap_or_default(),
         ports,
         created: c.created.unwrap_or_default(),
     })
 }
 
-fn into_port_binding(p: bollard::models::Port) -> PortBinding {
+fn into_port_binding(p: PortSummary) -> PortBinding {
+    let protocol = match &p.typ {
+        Some(t) => format!("{:?}", t).to_lowercase(),
+        None => "tcp".to_string(),
+    };
     PortBinding {
         host_port: p.public_port.map(|n| n.to_string()).unwrap_or_default(),
         container_port: p.private_port.to_string(),
-        protocol: port_protocol(p.typ),
+        protocol,
     }
-}
-
-fn port_protocol(typ: Option<PortTypeEnum>) -> String {
-    match typ {
-        Some(PortTypeEnum::TCP) => "tcp",
-        Some(PortTypeEnum::UDP) => "udp",
-        Some(PortTypeEnum::SCTP) => "sctp",
-        _ => "tcp",
-    }
-    .to_owned()
 }
