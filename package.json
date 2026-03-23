@@ -15,7 +15,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.99.3",
     "@tailwindcss/vite": "^4.2.2",
-    "@tanstack/react-query": "^5.94.5",
+    "@tanstack/react-query": "^5.95.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-deep-link": "^2.4.7",
     "@tauri-apps/plugin-dialog": "^2.6.0",
@@ -47,7 +47,7 @@
     "@types/node": "^25.5.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^5.2.0",
+    "@vitejs/plugin-react": "^6.0.1",
     "typescript": "~5.9.3",
     "vite": "^8.0.1",
     "vitest": "^4.1.0"
