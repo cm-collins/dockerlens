@@ -25,7 +25,17 @@ pub fn run() {
     tauri::Builder::default()
         .manage(client)
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![commands::list_containers])
+        .invoke_handler(tauri::generate_handler![
+            commands::list_containers,
+            commands::start_container,
+            commands::stop_container,
+            commands::restart_container,
+            commands::pause_container,
+            commands::unpause_container,
+            commands::remove_container,
+            commands::inspect_container,
+            commands::get_container_stats,
+        ])
         .run(tauri::generate_context!())
         .expect("DockerLens failed to start");
 }
