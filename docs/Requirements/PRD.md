@@ -158,13 +158,13 @@ Linux developers who use Docker face a frustrating reality:
 
 | ID | User Story | Priority |
 |---|---|---|
-| US-09 | As a developer, I want to see all my containers (running, stopped, paused) in one list | 🔴 Must |
-| US-10 | As a developer, I want to start, stop, restart and delete containers without opening a terminal | 🔴 Must |
+| US-09 | As a developer, I want to see all my containers in one searchable and filterable list with the key information I need at a glance | 🔴 Must |
+| US-10 | As a developer, I want to start, stop, restart, pause and remove containers individually or in bulk without opening a terminal | 🔴 Must |
 | US-11 | As a developer, I want to tail live logs from any container inside the app | 🔴 Must |
 | US-12 | As a developer, I want to exec into a container shell from inside the app | 🔴 Must |
-| US-13 | As a developer, I want to see real-time CPU, memory and network stats for running containers | 🔴 Must |
-| US-14 | As a developer, I want to see ports, environment variables, mounts and labels for any container | 🔴 Must |
-| US-15 | As a developer, I want to open a container's exposed port directly in my browser | 🟡 Should |
+| US-13 | As a developer, I want to see container CPU, memory and network usage both as overview summaries and in per-container detail views | 🔴 Must |
+| US-14 | As a developer, I want to see ports, environment variables, mounts, labels, health, restart policy and architecture details for any container | 🔴 Must |
+| US-15 | As a developer, I want to open a container's exposed port directly in my browser when that action is available | 🟡 Should |
 
 ### Image Management
 
@@ -260,22 +260,33 @@ Authentication is a fully optional layer. Every feature in DockerLens works with
 
 ### Feature 3 — Container Management
 
-The primary view. A split-panel layout with a container list on the left and a detail panel on the right.
+The primary view. A desktop-grade container workspace with top-level summary cards, a searchable/filterable table, bulk selection, quick actions, and a detail panel for the selected container.
 
-**Container List**
+**Overview Area**
+- Running / paused / stopped counts
+- CPU and memory summary cards
+- Clear empty-state messaging when no containers are running
+
+**Container Table**
+- Search
+- Only-running toggle and future-ready filters
+- Stable columns for name, container ID, image, ports, CPU, memory and actions
 - Live status badges: running 🟢 / stopped 🔴 / paused 🟡
-- Inline CPU%, memory and uptime for running containers
-- Search and filter
+- Architecture / compatibility badge when relevant
+- Row selection for future bulk operations
+- Quick actions for start, stop, restart, pause, remove and open-port when available
 
 **Container Detail Panel — 5 tabs**
 
 | Tab | Content |
 |---|---|
-| Overview | Ports, environment variables, volume mounts, labels, network, image |
+| Overview | Ports, environment variables, volume mounts, labels, network, image, restart policy, health and platform details |
 | Logs | Live `stdout`/`stderr` stream via `GET /containers/{id}/logs?follow=true` |
 | Terminal | Full interactive shell via `POST /containers/{id}/exec` + WebSocket |
 | Stats | Real-time CPU, memory and network I/O graphs |
 | Inspect | Raw Docker inspect JSON |
+
+The experience should feel trustworthy and immediate: actions should only appear when valid, unavailable stats should degrade gracefully, and the interface should make it obvious what state each container is in and what can be done next.
 
 ---
 
@@ -400,18 +411,20 @@ flowchart TD
 ### Flow 3 — Container Lifecycle
 ```mermaid
 flowchart TD
-    A["Containers view"] --> B["GET /containers/json\nList renders with status badges"]
-    B --> C{"User action"}
-    C -->|"Select container"| D["Detail panel opens"]
-    D --> E{"Tab"}
-    E -->|"Logs"| F["Live log stream\nxterm.js — colour coded"]
-    E -->|"Terminal"| G["Exec shell session\nWebSocket TTY"]
-    E -->|"Stats"| H["Real-time graphs\nCPU · RAM · Net I/O"]
-    E -->|"Overview"| I["Ports · Env · Mounts · Labels"]
-    C -->|"Start"| J["POST /containers/id/start"]
-    C -->|"Stop"| K["POST /containers/id/stop"]
-    C -->|"Delete"| L["Confirm modal\nDELETE /containers/id"]
-    C -->|"Open in browser"| M["Extract host port\nxdg-open localhost:PORT"]
+    A["Containers workspace loads"] --> B["Overview summary renders\ncounts + CPU + memory"]
+    B --> C["Container table renders\nsearch + filters + quick actions"]
+    C --> D{"User action"}
+    D -->|"Search / filter"| E["Table updates\nmatching rows only"]
+    D -->|"Select row"| F["Detail panel opens\ntyped container data shown"]
+    F --> G{"Tab"}
+    G -->|"Overview"| H["Ports · Env · Mounts · Labels · Health · Platform"]
+    G -->|"Logs"| I["Live log stream\nxterm.js — colour coded"]
+    G -->|"Terminal"| J["Exec shell session\nWebSocket TTY"]
+    G -->|"Stats"| K["Real-time graphs\nCPU · RAM · Net I/O"]
+    G -->|"Inspect"| L["Raw Docker inspect JSON"]
+    D -->|"Start / Stop / Restart / Pause / Remove"| M["Lifecycle command runs\nrow state refreshes"]
+    D -->|"Bulk action"| N["Selected rows acted on together\nper-row results returned"]
+    D -->|"Open in browser"| O["Extract host port\nxdg-open localhost:PORT"]
 ```
 
 ---

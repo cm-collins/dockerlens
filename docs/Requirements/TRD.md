@@ -119,12 +119,12 @@ sequenceDiagram
     participant RUST as Rust Handler
     participant DOCKER as Docker Engine
 
-    REACT->>IPC: invoke("list_containers")
+    REACT->>IPC: invoke("list_containers", { query })
     IPC->>RUST: #[tauri::command] fires
     RUST->>DOCKER: GET /containers/json
     DOCKER-->>RUST: JSON response
-    RUST-->>IPC: Vec<Container> serialized
-    IPC-->>REACT: ContainerSummary[]
+    RUST-->>IPC: ContainerListResponse serialized
+    IPC-->>REACT: typed list + overview payload
 
     Note over RUST,REACT: Real-time streaming (logs, stats)
     RUST->>IPC: emit("log_line", { id, line, ts })
@@ -267,7 +267,7 @@ dockerlens/                              ← single git repository
 │   │   ├── docker/
 │   │   │   ├── mod.rs
 │   │   │   ├── client.rs                ← bollard client singleton
-│   │   │   ├── containers.rs            ← list, start, stop, restart, delete
+│   │   │   ├── containers.rs            ← list query, overview, detail, lifecycle, bulk actions, inspect, stats snapshot
 │   │   │   ├── images.rs                ← list, pull, delete
 │   │   │   ├── volumes.rs               ← list, create, delete
 │   │   │   ├── networks.rs              ← list, create, delete
@@ -360,11 +360,22 @@ All IPC calls are wrapped in `src/lib/tauri.ts` for type safety. No raw `invoke(
 ```typescript
 // src/lib/tauri.ts
 import { invoke } from '@tauri-apps/api/core';
-import type { Container, DockerImage, Volume, Network } from '@/types';
+import type {
+  ContainerDetail,
+  ContainerListQuery,
+  ContainerListResponse,
+  ContainersOverviewSummary,
+} from '@/types';
 
 export const docker = {
-  listContainers: () =>
-    invoke<Container[]>('list_containers'),
+  listContainers: (query: ContainerListQuery) =>
+    invoke<ContainerListResponse>('list_containers', { query }),
+
+  getContainersOverview: () =>
+    invoke<ContainersOverviewSummary>('get_containers_overview'),
+
+  getContainerDetail: (id: string) =>
+    invoke<ContainerDetail>('get_container_detail', { id }),
 
   startContainer: (id: string) =>
     invoke<void>('start_container', { id }),
@@ -426,7 +437,7 @@ graph LR
 
     subgraph DOCKER_MOD["Docker Module"]
         CLIENT["client.rs\nbollard singleton"]
-        CONTAINERS["containers.rs"]
+        CONTAINERS["containers.rs\nlist · overview · detail\nlifecycle · inspect · stats"]
         IMAGES["images.rs"]
         VOLUMES["volumes.rs"]
         NETWORKS["networks.rs"]
@@ -452,41 +463,66 @@ graph LR
     TRAY & NOTIF & CONFIG & UPDATER --> COMMANDS
 ```
 
-### 6.2 Rust Command Pattern
+### 6.2 Phase 2 Container Backend Contract
 
-Every function callable from the React frontend is annotated with `#[tauri::command]` and registered in `main.rs`.
+Phase 2 must expose a stable container-management contract from Rust to the frontend. The frontend should consume DockerLens DTOs, not raw bollard models and not raw Docker JSON, except on the dedicated Inspect surface.
+
+```mermaid
+flowchart LR
+    LIST_CMD["list_containers(query)"] --> LIST_DTO["ContainerListResponse"]
+    OVERVIEW_CMD["get_containers_overview()"] --> OVERVIEW_DTO["ContainersOverviewSummary"]
+    DETAIL_CMD["get_container_detail(id)"] --> DETAIL_DTO["ContainerDetail"]
+    ACTION_CMD["start/stop/restart/pause/unpause/remove"] --> ACTION_RESULT["Result<(), String>"]
+    BULK_CMD["apply_container_action(ids, action)"] --> BULK_RESULT["BulkContainerActionResult[]"]
+    STATS_CMD["get_container_stats(id)"] --> STATS_DTO["ContainerStatsSnapshot"]
+    INSPECT_CMD["inspect_container(id)"] --> RAW_JSON["serde_json::Value"]
+```
+
+#### Required container DTOs
+
+- `ContainerListQuery`
+- `ContainerListResponse`
+- `ContainerListItem`
+- `ContainersOverviewSummary`
+- `ContainerDetail`
+- `ContainerActionCapabilities`
+- `ContainerStatsSnapshot`
+- `BulkContainerActionResult`
+- `PortBinding`, `MountInfo`, `NetworkAttachment`, `PlatformInfo`, `KeyValue`
+
+#### Contract rules
+
+- `list_containers(query)` is the main table source and must support search plus `only_running`
+- `get_containers_overview()` powers the summary area above the table
+- `get_container_detail(id)` powers the main detail panel and must not require frontend parsing of raw inspect JSON
+- `inspect_container(id)` remains available for debug / raw Inspect views only
+- `get_container_stats(id)` returns one-shot snapshot data in Phase 2; Phase 6 streams the same conceptual model live
+- bulk lifecycle actions should return per-item results so partial success is representable
+
+#### Implementation notes
+
+- commands return `Result<T, String>` as required by Tauri
+- enrichment must be fail-soft: if stats or inspect data is temporarily unavailable, the row/detail still returns with partial data
+- inspect/stats fan-out must use bounded concurrency for larger installations
+- capability calculation (`can_start`, `can_stop`, etc.) must be centralized in Rust so the frontend only renders valid actions
+
 ```rust
-// src-tauri/src/docker/containers.rs
-
-use bollard::Docker;
-use bollard::container::{ListContainersOptions, StartContainerOptions};
-use tauri::State;
-use crate::docker::client::DockerState;
-
 #[tauri::command]
 pub async fn list_containers(
-    docker: State<'_, DockerState>,
-) -> Result<Vec<ContainerSummary>, String> {
-    let opts = ListContainersOptions::<String> {
-        all: true,
-        ..Default::default()
-    };
-    docker.client
-        .list_containers(Some(opts))
-        .await
-        .map_err(|e| e.to_string())
-}
+    query: ContainerListQuery,
+    docker: State<'_, DockerClient>,
+) -> Result<ContainerListResponse, String>;
 
 #[tauri::command]
-pub async fn start_container(
+pub async fn get_containers_overview(
+    docker: State<'_, DockerClient>,
+) -> Result<ContainersOverviewSummary, String>;
+
+#[tauri::command]
+pub async fn get_container_detail(
     id: String,
-    docker: State<'_, DockerState>,
-) -> Result<(), String> {
-    docker.client
-        .start_container(&id, None::<StartContainerOptions<String>>)
-        .await
-        .map_err(|e| e.to_string())
-}
+    docker: State<'_, DockerClient>,
+) -> Result<ContainerDetail, String>;
 ```
 
 ### 6.3 bollard Client Singleton
@@ -497,18 +533,18 @@ The bollard client is initialised once at app start and stored as Tauri managed 
 
 use bollard::Docker;
 
-pub struct DockerState {
-    pub client: Docker,
+pub struct DockerClient {
+    inner: Docker,
 }
 
-impl DockerState {
+impl DockerClient {
     pub fn connect(socket_path: &str) -> Result<Self, bollard::errors::Error> {
-        let client = Docker::connect_with_unix(
+        let inner = Docker::connect_with_unix(
             socket_path,
             120,
             bollard::API_DEFAULT_VERSION,
         )?;
-        Ok(Self { client })
+        Ok(Self { inner })
     }
 }
 ```
@@ -524,10 +560,14 @@ Every PRD feature maps to one or more Docker REST API endpoints. All are called 
 | Feature | Method | Endpoint | PRD Reference |
 |---|---|---|---|
 | List containers | `GET` | `/containers/json?all=true` | US-09 |
+| Detail enrichment / inspect-backed detail | `GET` | `/containers/{id}/json` | US-14 |
 | Start container | `POST` | `/containers/{id}/start` | US-10 |
 | Stop container | `POST` | `/containers/{id}/stop` | US-10 |
 | Restart container | `POST` | `/containers/{id}/restart` | US-10 |
-| Delete container | `DELETE` | `/containers/{id}?force=true` | US-10 |
+| Pause container | `POST` | `/containers/{id}/pause` | US-10 |
+| Unpause container | `POST` | `/containers/{id}/unpause` | US-10 |
+| Remove container | `DELETE` | `/containers/{id}?force=true` | US-10 |
+| One-shot container stats | `GET` | `/containers/{id}/stats?stream=false&one-shot=true` | US-13 |
 | Live logs | `GET` | `/containers/{id}/logs?follow=true&stdout=true&stderr=true` | US-11 |
 | Exec create | `POST` | `/containers/{id}/exec` | US-12 |
 | Exec start (WebSocket) | `POST` | `/exec/{id}/start` | US-12 |
@@ -545,7 +585,30 @@ Every PRD feature maps to one or more Docker REST API endpoints. All are called 
 | Docker system info | `GET` | `/info` | Dashboard |
 | Docker events stream | `GET` | `/events` | Tray, suggestions |
 
-### 7.2 Streaming Architecture
+### 7.2 Snapshot-First Phase 2 Architecture
+
+Phase 2 should build on snapshot DTOs that can later be streamed in Phase 6 without redesigning the frontend/backend contract.
+
+```mermaid
+flowchart TD
+    A["GET /containers/json"] --> B["Base container rows"]
+    B --> C["Optional inspect enrichment\nbounded concurrency"]
+    B --> D["Optional one-shot stats enrichment\nbounded concurrency"]
+    C & D --> E["ContainerListItem[]"]
+    E --> F["ContainerListResponse"]
+    D --> G["ContainersOverviewSummary"]
+    C --> H["ContainerDetail"]
+    D --> H
+```
+
+Rules:
+
+- list loading must succeed even if some enrichment calls fail
+- stats snapshot freshness must be explicit in the DTO
+- raw inspect JSON is a separate path from typed detail
+- capability metadata should be calculated in Rust and returned with list/detail payloads
+
+### 7.3 Streaming Architecture
 
 Log streaming, stats streaming and event streaming all follow the same pattern — an async Tokio task reads from bollard's stream and emits Tauri events line by line.
 ```mermaid
