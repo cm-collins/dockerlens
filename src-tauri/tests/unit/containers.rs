@@ -1,6 +1,6 @@
 //! Unit tests for container data transformation logic.
 
-use dockerlens_lib::docker::containers::{ContainerSummary, PortBinding, validate_container_id};
+use dockerlens_lib::docker::containers::{validate_container_id, ContainerSummary, PortBinding};
 
 // ========== Phase 1 Tests: Data Serialization ==========
 
@@ -18,7 +18,7 @@ fn container_summary_serializes_to_json() {
 
     let json = serde_json::to_string(&summary);
     assert!(json.is_ok(), "ContainerSummary should serialize to JSON");
-    
+
     let json_str = json.unwrap();
     assert!(json_str.contains("abc123def456"));
     assert!(json_str.contains("test-container"));
@@ -235,7 +235,7 @@ fn port_binding_with_udp_protocol() {
         container_port: "53".to_string(),
         protocol: "udp".to_string(),
     };
-    
+
     assert_eq!(binding.protocol, "udp");
 }
 
@@ -246,7 +246,7 @@ fn port_binding_with_empty_host_port() {
         container_port: "80".to_string(),
         protocol: "tcp".to_string(),
     };
-    
+
     assert_eq!(binding.host_port, "");
 }
 
@@ -263,7 +263,7 @@ fn container_summary_with_exited_state() {
         ports: vec![],
         created: 1234567890,
     };
-    
+
     assert_eq!(summary.state, "exited");
     assert!(summary.status.contains("Exited"));
 }
@@ -279,6 +279,6 @@ fn container_summary_with_paused_state() {
         ports: vec![],
         created: 1234567890,
     };
-    
+
     assert_eq!(summary.state, "paused");
 }

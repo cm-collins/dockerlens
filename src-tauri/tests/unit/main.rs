@@ -1,3 +1,3 @@
-mod socket;
 mod client;
 mod containers;
+mod socket;

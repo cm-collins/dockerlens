@@ -1,8 +1,11 @@
 use bollard::models::ContainerSummary as BollardContainer;
+use bollard::query_parameters::{
+    ListContainersOptionsBuilder, RemoveContainerOptions, RestartContainerOptions, StatsOptions,
+    StopContainerOptions,
+};
 use bollard::service::PortSummary;
-use bollard::query_parameters::{ListContainersOptionsBuilder, RemoveContainerOptions, RestartContainerOptions, StopContainerOptions, StatsOptions};
-use serde::Serialize;
 use futures::StreamExt;
+use serde::Serialize;
 
 use crate::docker::client::DockerClient;
 
@@ -40,7 +43,10 @@ pub fn validate_container_id(id: &str) -> Result<(), String> {
     if id.len() > 128 {
         return Err("Container ID exceeds maximum length".to_string());
     }
-    if !id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+    if !id
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
         return Err("Container ID contains invalid characters".to_string());
     }
     Ok(())
@@ -48,9 +54,7 @@ pub fn validate_container_id(id: &str) -> Result<(), String> {
 
 /// Returns all containers — running, stopped and paused.
 pub async fn list_all(client: &DockerClient) -> Result<Vec<ContainerSummary>, String> {
-    let options = ListContainersOptionsBuilder::default()
-        .all(true)
-        .build();
+    let options = ListContainersOptionsBuilder::default().all(true).build();
 
     let raw = client
         .inner()
@@ -75,7 +79,7 @@ pub async fn start(client: &DockerClient, id: &str) -> Result<(), String> {
 /// Waits up to 10 seconds before forcing termination.
 pub async fn stop(client: &DockerClient, id: &str) -> Result<(), String> {
     validate_container_id(id)?;
-    let options = StopContainerOptions { 
+    let options = StopContainerOptions {
         t: Some(10),
         signal: None,
     };
@@ -90,7 +94,7 @@ pub async fn stop(client: &DockerClient, id: &str) -> Result<(), String> {
 /// Restarts a container.
 pub async fn restart(client: &DockerClient, id: &str) -> Result<(), String> {
     validate_container_id(id)?;
-    let options = RestartContainerOptions { 
+    let options = RestartContainerOptions {
         t: Some(10),
         signal: None,
     };
@@ -123,7 +127,12 @@ pub async fn unpause(client: &DockerClient, id: &str) -> Result<(), String> {
 }
 
 /// Removes a container. Force-removes even if running.
-pub async fn remove(client: &DockerClient, id: &str, force: bool, remove_volumes: bool) -> Result<(), String> {
+pub async fn remove(
+    client: &DockerClient,
+    id: &str,
+    force: bool,
+    remove_volumes: bool,
+) -> Result<(), String> {
     validate_container_id(id)?;
     let options = RemoveContainerOptions {
         force,
@@ -153,7 +162,10 @@ pub async fn inspect(client: &DockerClient, id: &str) -> Result<serde_json::Valu
 /// For live streaming use subscribe_stats (Phase 6).
 pub async fn get_stats(client: &DockerClient, id: &str) -> Result<serde_json::Value, String> {
     validate_container_id(id)?;
-    let opts = StatsOptions { stream: false, one_shot: true };
+    let opts = StatsOptions {
+        stream: false,
+        one_shot: true,
+    };
     let stats = client
         .inner()
         .stats(id, Some(opts))
@@ -161,7 +173,7 @@ pub async fn get_stats(client: &DockerClient, id: &str) -> Result<serde_json::Va
         .await
         .ok_or_else(|| "No stats returned".to_string())?
         .map_err(|e| format!("Failed to get stats for {}: {}", id, e))?;
-    
+
     Ok(serde_json::to_value(stats).unwrap_or(serde_json::Value::Null))
 }
 
