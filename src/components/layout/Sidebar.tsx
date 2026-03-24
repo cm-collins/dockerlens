@@ -1,135 +1,151 @@
-import { useAppStore } from "@/store/app.store";
-import { useContainers } from "@/hooks/useContainers";
-import { cn } from "@/lib/utils";
-import { 
-  Box, 
-  Image, 
-  Database, 
-  Network, 
-  Settings, 
-  Lightbulb,
-  Activity
+import {
+  Bot,
+  Box,
+  Boxes,
+  Database,
+  HardDrive,
+  Image,
+  Layers3,
+  Network,
+  PackageSearch,
+  Puzzle,
+  Settings,
+  ShieldCheck,
+  Wrench,
 } from "lucide-react";
+import { useAppStore, type Screen } from "@/store/app.store";
+import { useContainersResponse } from "@/hooks/useContainers";
+import { cn } from "@/lib/utils";
 
-// Navigation items following SOLID principles (Single Responsibility)
-const NAV_ITEMS = [
+type NavItem = {
+  id: Screen;
+  label: string;
+  icon: typeof Box;
+  badge?: string;
+};
+
+const PRIMARY_ITEMS: NavItem[] = [
   { id: "containers", label: "Containers", icon: Box },
   { id: "images", label: "Images", icon: Image },
-  { id: "volumes", label: "Volumes", icon: Database },
-  { id: "networks", label: "Networks", icon: Network },
-] as const;
+  { id: "volumes", label: "Volumes", icon: HardDrive },
+  { id: "builds", label: "Builds", icon: Wrench },
+  { id: "dockerHub", label: "Docker Hub", icon: PackageSearch },
+  { id: "scout", label: "Docker Scout", icon: ShieldCheck },
+  { id: "kubernetes", label: "Kubernetes", icon: Network },
+  { id: "models", label: "Models", icon: Layers3 },
+  { id: "toolkit", label: "MCP Toolkit", icon: Bot, badge: "Beta" },
+];
 
-const BOTTOM_ITEMS = [
-  { id: "suggestions", label: "Suggestions", icon: Lightbulb },
+const SECONDARY_ITEMS: NavItem[] = [
+  { id: "extensions", label: "Extensions", icon: Puzzle },
+  { id: "suggestions", label: "Suggestions", icon: Boxes },
   { id: "settings", label: "Settings", icon: Settings },
-] as const;
+];
 
-export function Sidebar() {
-  const { screen, setScreen } = useAppStore();
-  const { data: containers = [] } = useContainers();
-  
-  // Calculate stats (DRY: reusable logic)
-  const runningCount = containers.filter(c => c.state.toLowerCase() === "running").length;
-
-  return (
-    <aside className="w-[240px] flex flex-col border-r bg-card/50 backdrop-blur-sm">
-      {/* Logo & Status */}
-      <div className="p-4 border-b">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 rounded-lg docker-gradient flex items-center justify-center">
-            <Activity className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold">DockerLens</h1>
-            <p className="text-xs text-muted-foreground">v0.1.0 · Linux</p>
-          </div>
-        </div>
-        
-        {/* Docker Status Badge */}
-        <DockerStatusBadge running={runningCount} total={containers.length} />
-      </div>
-
-      {/* Main Navigation */}
-      <nav className="flex-1 p-3 space-y-1">
-        {NAV_ITEMS.map((item) => (
-          <NavItem
-            key={item.id}
-            {...item}
-            active={screen === item.id}
-            onClick={() => setScreen(item.id)}
-            {...(item.id === "containers" ? { count: containers.length } : {})}
-          />
-        ))}
-      </nav>
-
-      {/* Bottom Navigation */}
-      <nav className="p-3 border-t space-y-1">
-        {BOTTOM_ITEMS.map((item) => (
-          <NavItem
-            key={item.id}
-            {...item}
-            active={screen === item.id}
-            onClick={() => setScreen(item.id)}
-          />
-        ))}
-      </nav>
-    </aside>
-  );
-}
-
-// Extracted component following Single Responsibility Principle
-function NavItem({ 
-  icon: Icon, 
-  label, 
-  active, 
-  onClick, 
-  count 
-}: { 
-  icon: any; 
-  label: string; 
-  active: boolean; 
-  onClick: () => void; 
-  count?: number;
+function SidebarItem({
+  item,
+  active,
+  onClick,
+}: {
+  item: NavItem;
+  active: boolean;
+  onClick: () => void;
 }) {
+  const Icon = item.icon;
+
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all",
-        "hover:bg-accent",
-        active && "bg-primary/10 text-primary hover:bg-primary/15"
+        "group flex h-12 w-full items-center justify-center gap-4 rounded-2xl px-0 text-left text-[15px] font-medium transition xl:justify-start xl:px-5",
+        active
+          ? "bg-[rgb(var(--sidebar-active))] text-white shadow-[inset_0_0_0_1px_rgba(95,142,255,0.16)]"
+          : "text-[rgb(var(--sidebar-foreground))] hover:bg-white/5 hover:text-white",
       )}
     >
-      <Icon className="w-4 h-4 flex-shrink-0" />
-      <span className="flex-1 text-left">{label}</span>
-      {count !== undefined && (
-        <span className={cn(
-          "text-xs px-2 py-0.5 rounded-full",
-          active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-        )}>
-          {count}
+      <Icon className={cn("h-5 w-5", active ? "text-[rgb(var(--sidebar-accent))]" : "text-[rgb(var(--sidebar-muted))]")} />
+      <span className="hidden flex-1 truncate xl:block">{item.label}</span>
+      {item.badge ? (
+        <span className="hidden rounded-full bg-[rgb(var(--shell-blue-end))] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white xl:inline-flex">
+          {item.badge}
         </span>
-      )}
+      ) : null}
     </button>
   );
 }
 
-// Docker status badge component (DRY: reusable)
-function DockerStatusBadge({ running, total }: { running: number; total: number }) {
+export function Sidebar() {
+  const { screen, setScreen } = useAppStore();
+  const { data } = useContainersResponse({ all: true });
+  const listResponse = data ?? {
+    items: [],
+    overview: {
+      total: 0,
+      running: 0,
+      paused: 0,
+      exited: 0,
+      total_cpu_percent: 0,
+      total_memory_usage_bytes: 0,
+      total_memory_limit_bytes: 0,
+      generated_at_ms: 0,
+    },
+    total_count: 0,
+    filtered_count: 0,
+    generated_at_ms: 0,
+  };
+
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
-      <div className={cn(
-        "w-2 h-2 rounded-full",
-        running > 0 ? "bg-green-500 pulse-dot" : "bg-muted-foreground"
-      )} />
-      <div className="flex-1">
-        <p className="text-xs font-medium">
-          {running > 0 ? "Docker Running" : "Docker Idle"}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          {running} running · {total} total
-        </p>
+    <aside className="flex w-[88px] shrink-0 flex-col border-r border-white/8 bg-[rgb(var(--sidebar-bg))] px-3 py-5 text-white xl:w-[320px] xl:px-5 xl:py-7">
+      <div className="mb-6 rounded-[24px] border border-white/6 bg-white/3 px-4 py-4 xl:flex xl:items-center xl:justify-between xl:px-5">
+        <div className="hidden xl:block">
+          <div className="text-[13px] font-semibold text-white/88">Ask Gordon</div>
+          <div className="mt-1 text-[12px] text-[rgb(var(--sidebar-muted))]">
+            AI-assisted workflow suggestions
+          </div>
+        </div>
+        <span className="mt-3 inline-flex rounded-full bg-[rgb(var(--shell-blue-end))] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white lg:mt-0">
+          Beta
+        </span>
       </div>
-    </div>
+
+      <nav className="space-y-1.5">
+        {PRIMARY_ITEMS.map((item) => (
+          <SidebarItem
+            key={item.id}
+            item={item}
+            active={screen === item.id}
+            onClick={() => setScreen(item.id)}
+          />
+        ))}
+      </nav>
+
+      <div className="my-6 h-px bg-white/8" />
+
+      <nav className="space-y-1.5">
+        {SECONDARY_ITEMS.map((item) => (
+          <SidebarItem
+            key={item.id}
+            item={item}
+            active={screen === item.id}
+            onClick={() => setScreen(item.id)}
+          />
+        ))}
+      </nav>
+
+      <div className="mt-auto rounded-[24px] border border-white/6 bg-white/4 p-4 lg:p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgb(var(--sidebar-active))] text-[rgb(var(--sidebar-accent))]">
+            <Database className="h-5 w-5" />
+          </div>
+          <div className="hidden xl:block">
+            <div className="text-[14px] font-semibold text-white">Container inventory</div>
+            <div className="mt-1 text-[12px] text-[rgb(var(--sidebar-muted))]">
+              {listResponse.overview.running} running · {listResponse.total_count} total
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 }

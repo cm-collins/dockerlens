@@ -1,76 +1,79 @@
 //! Unit tests for socket detection logic.
 
 use dockerlens_lib::system::socket;
-use std::path::PathBuf;
+use std::os::unix::fs::FileTypeExt;
+use std::path::{Path, PathBuf};
 
 #[test]
-fn detect_returns_existing_path_or_none() {
+fn detect_returns_existing_socket_or_none() {
     if let Some(path) = socket::detect() {
-        assert!(path.exists(), "Detected socket path must exist on disk");
-    }
-}
-
-#[test]
-fn detect_respects_docker_host_env() {
-    std::env::set_var("DOCKER_HOST", "unix:///var/run/docker.sock");
-    let result = socket::detect();
-    std::env::remove_var("DOCKER_HOST");
-
-    if let Some(path) = result {
-        assert!(path.exists());
-    }
-}
-
-#[test]
-fn detect_ignores_tcp_hosts() {
-    std::env::set_var("DOCKER_HOST", "tcp://127.0.0.1:2375");
-    let result = socket::detect();
-    std::env::remove_var("DOCKER_HOST");
-
-    // Should not return TCP host
-    if let Some(path) = result {
-        assert_ne!(path.to_str().unwrap(), "127.0.0.1:2375");
-    }
-}
-
-#[test]
-fn detect_ignores_http_hosts() {
-    std::env::set_var("DOCKER_HOST", "http://localhost:2375");
-    let result = socket::detect();
-    std::env::remove_var("DOCKER_HOST");
-
-    if let Some(path) = result {
-        assert!(!path.to_str().unwrap().starts_with("http://"));
-    }
-}
-
-#[test]
-fn detect_handles_nonexistent_env_path() {
-    std::env::set_var("DOCKER_HOST", "unix:///nonexistent/docker.sock");
-    let result = socket::detect();
-    std::env::remove_var("DOCKER_HOST");
-
-    // Should not return nonexistent path
-    if let Some(path) = result {
-        assert_ne!(path, PathBuf::from("/nonexistent/docker.sock"));
-    }
-}
-
-#[test]
-fn detect_checks_standard_socket_path() {
-    let standard = PathBuf::from("/var/run/docker.sock");
-
-    if standard.exists() {
-        let result = socket::detect();
+        let metadata = std::fs::metadata(&path).expect("detected path should be readable");
         assert!(
-            result.is_some(),
-            "Should detect standard socket when it exists"
+            metadata.file_type().is_socket(),
+            "Detected path must be a Unix socket"
         );
     }
 }
 
 #[test]
-fn detect_checks_rootless_paths() {
-    // Just verify detect() runs without panic when checking rootless paths
-    let _result = socket::detect();
+fn candidate_paths_prioritize_docker_host_override() {
+    let paths = socket::candidate_paths(
+        Some("unix:///tmp/docker-from-env.sock"),
+        Some("/run/user/1000"),
+        Some(Path::new("/home/tester")),
+    );
+
+    assert_eq!(
+        paths.first(),
+        Some(&PathBuf::from("/tmp/docker-from-env.sock"))
+    );
+}
+
+#[test]
+fn candidate_paths_include_rootless_and_desktop_locations() {
+    let paths = socket::candidate_paths(
+        None,
+        Some("/run/user/1000"),
+        Some(Path::new("/home/tester")),
+    );
+
+    assert!(paths.contains(&PathBuf::from("/run/user/1000/docker.sock")));
+    assert!(paths.contains(&PathBuf::from("/home/tester/.docker/run/docker.sock")));
+    assert!(paths.contains(&PathBuf::from("/home/tester/.docker/desktop/docker.sock")));
+}
+
+#[test]
+fn candidate_paths_include_standard_linux_locations() {
+    let paths = socket::candidate_paths(None, None, None);
+
+    assert!(paths.contains(&PathBuf::from("/run/docker.sock")));
+    assert!(paths.contains(&PathBuf::from("/var/run/docker.sock")));
+}
+
+#[test]
+fn candidate_paths_ignore_non_unix_docker_host_values() {
+    let tcp_paths = socket::candidate_paths(Some("tcp://127.0.0.1:2375"), None, None);
+    let http_paths = socket::candidate_paths(Some("http://localhost:2375"), None, None);
+
+    assert_eq!(tcp_paths.first(), Some(&PathBuf::from("/run/docker.sock")));
+    assert_eq!(http_paths.first(), Some(&PathBuf::from("/run/docker.sock")));
+}
+
+#[test]
+fn candidate_paths_do_not_duplicate_entries() {
+    let paths = socket::candidate_paths(
+        Some("unix:///var/run/docker.sock"),
+        None,
+        Some(Path::new("/home/tester")),
+    );
+
+    let unique_count = paths
+        .iter()
+        .filter(|path| path.as_path() == Path::new("/var/run/docker.sock"))
+        .count();
+
+    assert_eq!(
+        unique_count, 1,
+        "Socket candidates should stay de-duplicated"
+    );
 }

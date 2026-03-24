@@ -33,7 +33,15 @@ async fn list_containers_returns_vec_when_docker_is_running() {
     // Each returned container must have a non-empty id and name
     for c in &containers {
         assert!(!c.id.is_empty(), "Container id must not be empty");
-        assert_eq!(c.id.len(), 12, "Container id should be 12 chars (short ID)");
+        assert_eq!(
+            c.short_id.len(),
+            12,
+            "Container short_id should be 12 chars"
+        );
+        assert!(
+            c.id.starts_with(&c.short_id),
+            "Container id should start with short_id"
+        );
     }
 }
 

@@ -1,119 +1,148 @@
-# Tests
+# Backend Tests
 
-This directory contains all tests for DockerLens Phase 1 and Phase 2 implementation.
+This directory contains the Rust backend test suite for DockerLens.
 
-## Test Organization
+It covers:
+- pure unit tests that do not require Docker
+- integration tests that run against the host Docker setup when available
+- Linux socket-detection behavior for rootful, rootless, and user-scoped Docker installs
 
-Tests are organized into two directories:
+## Layout
 
-```
+```text
 tests/
-├── unit/              # Unit tests (no Docker required)
+├── unit/
 │   ├── main.rs
-│   ├── socket.rs      # Socket detection logic (8 tests)
-│   ├── client.rs      # DockerClient creation and cloning (4 tests)
-│   └── containers.rs  # Data transformation, serialization, validation (23 tests)
-│
-├── integration/       # Integration tests (requires Docker)
+│   ├── client.rs
+│   ├── containers.rs
+│   └── socket.rs
+├── integration/
 │   ├── main.rs
-│   ├── socket_detection.rs  # Real filesystem socket detection (2 tests)
-│   ├── docker_client.rs     # Real Docker API calls (2 tests)
-│   └── commands.rs          # Tauri command handlers (14 tests)
-│
+│   ├── commands.rs
+│   ├── docker_client.rs
+│   └── socket_detection.rs
 └── README.md
 ```
 
-### Unit Tests (`tests/unit/`)
-Test individual functions and data transformations without requiring Docker to be running.
+## Current Test Inventory
 
-- **`socket.rs`** — Socket detection logic (env vars, rootless paths, standard paths) — 8 tests
-- **`client.rs`** — DockerClient creation, cloning, and Arc sharing — 4 tests
-- **`containers.rs`** — Container data transformation, serialization, and input validation — 23 tests
-  - Phase 1: Data serialization (8 tests)
-  - Phase 2: Input validation and security (15 tests)
+### Unit tests
 
-### Integration Tests (`tests/integration/`)
-Test the full flow from API calls to Docker Engine. These require Docker to be running but gracefully skip if unavailable.
+- `client.rs` — 4 tests
+  - Docker client creation
+  - clone behavior
+  - inner client access
+  - independence across cloned handles
+- `socket.rs` — 6 tests
+  - `DOCKER_HOST` Unix socket precedence
+  - rootless socket candidates
+  - Docker Desktop Linux socket candidate
+  - standard Linux socket candidates
+  - non-Unix `DOCKER_HOST` rejection
+  - de-duplication of candidate paths
+- `containers.rs` — 31 tests
+  - container DTO serialization
+  - port binding formatting
+  - ID validation and security checks
+  - action-capability mapping
+  - browser URL derivation
+  - stats snapshot transformation
+  - typed detail extraction from inspect JSON
+  - Docker error humanization for bind mounts, permissions, missing containers, and daemon availability
 
-- **`socket_detection.rs`** — Socket detection against real filesystem — 2 tests
-- **`docker_client.rs`** — Real Docker API calls (list containers, all states) — 2 tests
-- **`commands.rs`** — Tauri command handlers with real Docker client — 14 tests
-  - Phase 1: List containers (3 tests)
-  - Phase 2: Container lifecycle commands (11 tests)
+### Integration tests
 
-## Running Tests
+- `socket_detection.rs` — 2 tests
+  - real filesystem socket detection
+  - `DOCKER_HOST` behavior on a live host
+- `docker_client.rs` — 2 tests
+  - list containers when Docker is running
+  - include stopped containers in the real client flow
+- `commands.rs` — 18 tests
+  - typed list response
+  - running/search filters
+  - overview summary
+  - typed detail payload
+  - inspect payload
+  - one-shot stats snapshot
+  - invalid-ID handling for lifecycle commands
+  - bulk action per-item result behavior
 
-**From project root:**
+## Totals
+
+- Unit tests: 41
+- Integration tests: 22
+- Total backend tests: 63
+
+## Running The Suite
+
+From the repo root:
+
 ```bash
-# Run all tests (53 tests)
+# All backend tests
 cargo test --manifest-path src-tauri/Cargo.toml
 
-# Run only unit tests (35 tests - fast, no Docker required)
+# Unit tests only
 cargo test --manifest-path src-tauri/Cargo.toml --test unit
 
-# Run only integration tests (18 tests - requires Docker)
+# Integration tests only
 cargo test --manifest-path src-tauri/Cargo.toml --test integration
 
-# Run with output
+# Lint + compile quality gate
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+
+# Optional verbose output
 cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture
-
-# Run specific test file
-cargo test --manifest-path src-tauri/Cargo.toml --test unit socket
-cargo test --manifest-path src-tauri/Cargo.toml --test integration commands
 ```
 
-**From `src-tauri/` directory:**
+From `src-tauri/`:
+
 ```bash
-cd src-tauri
-
-# Run all tests (53 tests)
 cargo test
-
-# Run only unit tests (35 tests - fast, no Docker required)
 cargo test --test unit
-
-# Run only integration tests (18 tests - requires Docker)
 cargo test --test integration
-
-# Run with output
-cargo test -- --nocapture
-
-# Run specific test file
-cargo test --test unit socket
-cargo test --test integration commands
-
-# Run specific test by name
-cargo test validate_container_id
-cargo test start_container
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-## Test Coverage
+## What Is Covered Well
 
-**Phase 1 Coverage:**
-- ✅ Socket detection (standard, rootless, env var)
-- ✅ Docker client initialization
-- ✅ Container listing and data transformation
-- ✅ Port binding conversion
-- ✅ JSON serialization
-- ✅ Error handling for missing Docker
+- Docker client creation and shared-state behavior
+- Linux Docker socket detection for:
+  - `DOCKER_HOST=unix://...`
+  - rootless `XDG_RUNTIME_DIR/docker.sock`
+  - `~/.docker/run/docker.sock`
+  - `~/.docker/desktop/docker.sock`
+  - `/run/docker.sock`
+  - `/var/run/docker.sock`
+- typed container list/detail/overview/stats transformations
+- lifecycle input validation and invalid-ID failures
+- bulk action result semantics
+- search and running-state filtering
 
-**Phase 2 Coverage:**
-- ✅ Input validation (container IDs)
-- ✅ Security validation (path traversal, command injection, shell metacharacters)
-- ✅ Start/stop/restart containers
-- ✅ Pause/unpause containers
-- ✅ Remove containers (with force and volume options)
-- ✅ Inspect containers (full JSON)
-- ✅ Get container stats (one-shot)
-- ✅ Error handling for invalid inputs
-- ✅ Boundary testing (empty IDs, max length, special characters)
+## Current Gaps
 
-**Total:** 35 unit tests + 18 integration tests = **53 tests**
+The backend suite is strong, but it is not exhaustive yet.
 
-### Test Breakdown by Phase
+These areas still need more coverage if we want to say the backend is fully proven:
 
-| Phase | Unit Tests | Integration Tests | Total |
-|-------|------------|-------------------|-------|
-| Phase 1 | 20 | 7 | 27 |
-| Phase 2 | 15 | 11 | 26 |
-| **Total** | **35** | **18** | **53** |
+- successful lifecycle command paths against disposable fixture containers
+  - start
+  - stop
+  - restart
+  - pause
+  - unpause
+  - remove
+- Docker daemon unavailable and permission-denied cases with stronger assertions
+- distro matrix validation across Ubuntu, Debian, Fedora, Arch, and Docker Desktop Linux
+- rootless Docker integration tests on a real host, not just candidate-path unit tests
+- behavior against remote/TCP Docker hosts if we ever decide to support them
+
+## Recommended Backend Verification Gate
+
+Before merging backend changes, this is the expected minimum:
+
+```bash
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml
+```

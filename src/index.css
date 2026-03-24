@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
 @theme inline {
@@ -21,123 +21,122 @@
   --color-border: rgb(var(--border));
   --color-input: rgb(var(--input));
   --color-ring: rgb(var(--ring));
-
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
 }
 
-/* ============================================================================
-   THEME SYSTEM - Docker Desktop inspired with unique purple accent
-   ============================================================================ */
-
 :root {
-  /* Docker Blue + Unique Purple Accent */
-  --docker-blue: 13 183 237;      /* #0DB7ED - Docker's signature blue */
-  --accent-purple: 139 92 246;    /* #8B5CF6 - Unique purple accent */
-  
-  /* Light Mode */
-  --background: 255 255 255;
-  --foreground: 15 23 42;
-  --card: 248 250 252;
-  --card-foreground: 15 23 42;
+  --background: 244 247 252;
+  --foreground: 18 28 45;
+  --card: 255 255 255;
+  --card-foreground: 18 28 45;
   --popover: 255 255 255;
-  --popover-foreground: 15 23 42;
-  --primary: 13 183 237;          /* Docker blue */
+  --popover-foreground: 18 28 45;
+  --primary: 29 78 216;
   --primary-foreground: 255 255 255;
-  --secondary: 139 92 246;        /* Purple accent */
-  --secondary-foreground: 255 255 255;
-  --muted: 241 245 249;
-  --muted-foreground: 100 116 139;
-  --accent: 241 245 249;
-  --accent-foreground: 15 23 42;
+  --secondary: 230 238 252;
+  --secondary-foreground: 18 28 45;
+  --muted: 230 236 245;
+  --muted-foreground: 101 117 140;
+  --accent: 238 244 255;
+  --accent-foreground: 18 28 45;
   --destructive: 239 68 68;
   --destructive-foreground: 255 255 255;
-  --border: 226 232 240;
-  --input: 226 232 240;
-  --ring: 13 183 237;
-  --radius: 0.5rem;
-  
-  /* Status colors */
-  --success: 34 197 94;
-  --warning: 251 146 60;
-  --info: 59 130 246;
+  --border: 214 223 235;
+  --input: 214 223 235;
+  --ring: 37 99 235;
 
-  /* Legacy aliases used by older container views */
-  --bg: rgb(var(--background));
-  --surface: rgb(var(--card));
-  --text-primary: rgb(var(--foreground));
-  --text-secondary: rgb(var(--foreground) / 0.72);
-  --text-muted: rgb(var(--muted-foreground));
-  --blue: rgb(var(--primary));
-  --blue-dim: rgb(var(--primary) / 0.14);
-  --blue-glow: rgb(var(--primary) / 0.10);
-  --green: rgb(var(--success));
-  --green-dim: rgb(var(--success) / 0.14);
-  --yellow: rgb(var(--warning));
-  --yellow-dim: rgb(var(--warning) / 0.14);
-  --red: rgb(var(--destructive));
-  --red-dim: rgb(var(--destructive) / 0.14);
+  --shell-blue-start: 13 46 143;
+  --shell-blue-end: 16 55 170;
+  --sidebar-bg: 239 243 250;
+  --sidebar-foreground: 48 63 89;
+  --sidebar-muted: 106 120 146;
+  --sidebar-active: 219 230 249;
+  --sidebar-accent: 29 78 216;
+
+  --workspace-bg: 247 249 253;
+  --workspace-foreground: 20 28 43;
+  --workspace-soft: 71 84 108;
+  --workspace-muted: 112 124 147;
+  --workspace-border: 216 224 236;
+  --workspace-card: 255 255 255;
+  --panel-bg: 255 255 255;
+  --table-bg: 252 253 255;
+  --table-row-hover: 243 247 252;
+  --table-row-selected: 230 238 249;
+  --table-footer-bg: 247 249 253;
+
+  --statusbar-bg: 239 243 250;
+  --statusbar-foreground: 55 66 88;
+  --statusbar-muted: 114 126 148;
+  --statusbar-accent: 17 121 201;
+
+  --link: 20 109 242;
+  --link-strong: 10 89 213;
+  --danger: 240 77 77;
+  --warning-bg: 254 229 185;
+  --warning-fg: 163 89 9;
 }
 
 .dark {
-  /* Dark Mode - Docker Desktop inspired */
-  --background: 15 23 42;         /* Slate 900 */
-  --foreground: 248 250 252;
-  --card: 30 41 59;               /* Slate 800 */
-  --card-foreground: 248 250 252;
-  --popover: 30 41 59;
-  --popover-foreground: 248 250 252;
-  --primary: 13 183 237;          /* Docker blue stays same */
+  --background: 14 19 28;
+  --foreground: 239 244 250;
+  --card: 19 26 37;
+  --card-foreground: 239 244 250;
+  --popover: 19 26 37;
+  --popover-foreground: 239 244 250;
+  --primary: 44 126 255;
   --primary-foreground: 255 255 255;
-  --secondary: 139 92 246;        /* Purple accent */
-  --secondary-foreground: 255 255 255;
-  --muted: 51 65 85;              /* Slate 700 */
-  --muted-foreground: 148 163 184;
-  --accent: 51 65 85;
-  --accent-foreground: 248 250 252;
-  --destructive: 239 68 68;
+  --secondary: 30 38 52;
+  --secondary-foreground: 239 244 250;
+  --muted: 30 38 52;
+  --muted-foreground: 141 153 177;
+  --accent: 29 38 54;
+  --accent-foreground: 239 244 250;
+  --destructive: 248 86 86;
   --destructive-foreground: 255 255 255;
-  --border: 51 65 85;
-  --input: 51 65 85;
-  --ring: 13 183 237;
-  
-  /* Status colors for dark mode */
-  --success: 34 197 94;
-  --warning: 251 146 60;
-  --info: 59 130 246;
+  --border: 45 54 69;
+  --input: 45 54 69;
+  --ring: 44 126 255;
 
-  /* Legacy aliases used by older container views */
-  --bg: rgb(var(--background));
-  --surface: rgb(var(--card));
-  --text-primary: rgb(var(--foreground));
-  --text-secondary: rgb(var(--foreground) / 0.72);
-  --text-muted: rgb(var(--muted-foreground));
-  --blue: rgb(var(--primary));
-  --blue-dim: rgb(var(--primary) / 0.18);
-  --blue-glow: rgb(var(--primary) / 0.12);
-  --green: rgb(var(--success));
-  --green-dim: rgb(var(--success) / 0.18);
-  --yellow: rgb(var(--warning));
-  --yellow-dim: rgb(var(--warning) / 0.18);
-  --red: rgb(var(--destructive));
-  --red-dim: rgb(var(--destructive) / 0.18);
-}
+  --shell-blue-start: 10 44 132;
+  --shell-blue-end: 14 58 171;
+  --sidebar-bg: 10 14 20;
+  --sidebar-foreground: 226 232 241;
+  --sidebar-muted: 122 136 160;
+  --sidebar-active: 17 39 76;
+  --sidebar-accent: 72 155 255;
 
-/* ============================================================================
-   BASE STYLES - macOS inspired
-   ============================================================================ */
+  --workspace-bg: 18 23 31;
+  --workspace-foreground: 241 245 249;
+  --workspace-soft: 161 174 192;
+  --workspace-muted: 124 137 157;
+  --workspace-border: 49 58 74;
+  --workspace-card: 24 31 41;
+  --panel-bg: 18 24 33;
+  --table-bg: 19 24 33;
+  --table-row-hover: 24 31 41;
+  --table-row-selected: 50 55 66;
+  --table-footer-bg: 16 21 30;
 
-* {
-  @apply border-border;
+  --statusbar-bg: 9 13 19;
+  --statusbar-foreground: 224 230 238;
+  --statusbar-muted: 120 132 154;
+  --statusbar-accent: 26 199 214;
+
+  --link: 45 138 255;
+  --link-strong: 102 177 255;
+  --danger: 255 97 97;
+  --warning-bg: 247 148 29;
+  --warning-fg: 88 48 0;
 }
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+}
+
+* {
+  border-color: rgb(var(--border));
 }
 
 html,
@@ -149,11 +148,13 @@ body,
 }
 
 body {
-  @apply bg-background text-foreground;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  margin: 0;
+  background: rgb(var(--workspace-bg));
+  color: rgb(var(--workspace-foreground));
+  font-family: "Manrope", "Inter", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  font-feature-settings: "ss01" on, "cv10" on, "cv11" on;
   color-scheme: light;
 }
 
@@ -161,13 +162,26 @@ body {
   color-scheme: dark;
 }
 
-/* ============================================================================
-   SCROLLBAR - macOS style
-   ============================================================================ */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+input::selection,
+textarea::selection {
+  background: rgb(var(--link) / 0.32);
+}
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -175,114 +189,17 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted rounded-full;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgb(var(--workspace-border));
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/30;
-}
-
-/* ============================================================================
-   ANIMATIONS
-   ============================================================================ */
-
-@keyframes pulse-dot {
-  0%, 100% { 
-    opacity: 1; 
-    box-shadow: 0 0 8px currentColor; 
-  }
-  50% { 
-    opacity: 0.6; 
-    box-shadow: 0 0 4px currentColor; 
-  }
-}
-
-@keyframes fade-in {
-  from { 
-    opacity: 0; 
-    transform: translateY(8px); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
-  }
-}
-
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-/* ============================================================================
-   UTILITY CLASSES
-   ============================================================================ */
-
-.fade-in {
-  animation: fade-in 300ms ease-out;
-}
-
-.slide-in-right {
-  animation: slide-in-right 300ms ease-out;
-}
-
-.pulse-dot {
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
-.glass {
-  @apply bg-background/80 backdrop-blur-xl;
-}
-
-.docker-gradient {
-  background: linear-gradient(135deg, rgb(var(--docker-blue)) 0%, rgb(var(--accent-purple)) 100%);
+  background: rgb(var(--workspace-muted));
+  background-clip: padding-box;
 }
 
 .mono {
-  font-family: "JetBrains Mono", "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", monospace;
-}
-
-/* ============================================================================
-   FOCUS STYLES - macOS inspired
-   ============================================================================ */
-
-:focus-visible {
-  @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
-}
-
-button:focus-visible,
-a:focus-visible {
-  @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
-}
-
-/* ============================================================================
-   SELECTION
-   ============================================================================ */
-
-::selection {
-  @apply bg-primary/20 text-foreground;
-}
-
-/* ============================================================================
-   TRANSITIONS - Smooth like macOS
-   ============================================================================ */
-
-* {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
 }

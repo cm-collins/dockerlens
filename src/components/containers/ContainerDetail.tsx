@@ -1,238 +1,134 @@
-import { useState } from "react";
+import { ExternalLink, X } from "lucide-react";
+import { useContainerDetail } from "@/hooks/useContainers";
 import { useContainersStore } from "@/store/containers.store";
-import { useContainers, useStartContainer, useStopContainer, useRestartContainer, usePauseContainer, useUnpauseContainer, useRemoveContainer } from "@/hooks/useContainers";
-import { OverviewTab } from "./OverviewTab";
+
+function DetailSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <h3 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[rgb(var(--workspace-muted))]">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function InlineTag({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-[rgb(var(--workspace-border))] bg-[rgb(var(--workspace-card))] px-3 py-1 text-[12px] text-[rgb(var(--workspace-soft))]">
+      {children}
+    </span>
+  );
+}
 
 export function ContainerDetail() {
-    const { selectedId } = useContainersStore();
-    const { data: containers = [] } = useContainers();
-    const [activeTab, setActiveTab] = useState<"overview" | "logs" | "inspect" | "terminal">("overview");
+  const { selectedId, setSelectedId } = useContainersStore();
+  const { data, isLoading } = useContainerDetail(selectedId);
 
-    const container = containers.find((c) => c.id === selectedId);
+  if (!selectedId) {
+    return null;
+  }
 
-    if (!selectedId || !container) {
-        return (
-            <div className="flex-1 flex items-center justify-center" style={{ background: "var(--surface)" }}>
-                <div className="text-center">
-                    <div className="text-[40px] opacity-20 mb-3">◫</div>
-                    <div className="text-[13px]" style={{ color: "var(--text-muted)" }}>
-                        Select a container to view details
+  return (
+    <aside className="border-t border-[rgb(var(--workspace-border))] bg-[rgb(var(--panel-bg))] px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h2 className="text-[24px] font-semibold tracking-[-0.04em] text-[rgb(var(--workspace-foreground))]">
+              {data?.name ?? "Loading container"}
+            </h2>
+            {data?.platform.architecture ? (
+              <InlineTag>{data.platform.architecture.toUpperCase()}</InlineTag>
+            ) : null}
+          </div>
+
+          <p className="mt-2 max-w-3xl text-[14px] text-[rgb(var(--workspace-muted))]">
+            {isLoading
+              ? "Loading container details..."
+              : data
+                ? `${data.image} • ${data.status}`
+                : "Unable to load selected container details."}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setSelectedId(null)}
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgb(var(--workspace-border))] bg-[rgb(var(--workspace-card))] text-[rgb(var(--workspace-soft))]"
+          title="Close details"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {data ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4 xl:gap-8">
+          <DetailSection title="Image">
+            <div className="space-y-2 text-[14px] text-[rgb(var(--workspace-soft))]">
+              <div>{data.image}</div>
+              <div className="font-mono text-[12px] text-[rgb(var(--workspace-muted))]">
+                {data.image_id}
+              </div>
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Ports">
+            <div className="flex flex-wrap gap-2">
+              {data.ports.length ? (
+                data.ports.map((port) => (
+                  <a
+                    key={`${port.host_port}-${port.container_port}-${port.protocol}`}
+                    href={port.browser_url ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--link))/0.24] bg-[rgb(var(--workspace-card))] px-3 py-1 text-[12px] text-[rgb(var(--link))]"
+                  >
+                    {port.host_port || port.container_port}/{port.protocol}
+                    {port.browser_url ? <ExternalLink className="h-3.5 w-3.5" /> : null}
+                  </a>
+                ))
+              ) : (
+                <span className="text-[14px] text-[rgb(var(--workspace-muted))]">
+                  No public ports
+                </span>
+              )}
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Networks">
+            <div className="space-y-2 text-[14px] text-[rgb(var(--workspace-soft))]">
+              {data.networks.length ? (
+                data.networks.map((network) => (
+                  <div key={network.name}>
+                    <div>{network.name}</div>
+                    <div className="text-[12px] text-[rgb(var(--workspace-muted))]">
+                      {network.ip_address ?? "No IP assigned"}
                     </div>
-                </div>
+                  </div>
+                ))
+              ) : (
+                <span className="text-[14px] text-[rgb(var(--workspace-muted))]">
+                  No networks attached
+                </span>
+              )}
             </div>
-        );
-    }
+          </DetailSection>
 
-    return (
-        <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "var(--surface)" }}>
-            <DetailHeader container={container} />
-            
-            <div className="flex" style={{ borderBottom: "1px solid var(--border)" }}>
-                <TabButton label="Overview" active={activeTab === "overview"} onClick={() => setActiveTab("overview")} />
-                <TabButton label="Logs" active={activeTab === "logs"} onClick={() => setActiveTab("logs")} />
-                <TabButton label="Inspect" active={activeTab === "inspect"} onClick={() => setActiveTab("inspect")} />
-                <TabButton label="Terminal" active={activeTab === "terminal"} onClick={() => setActiveTab("terminal")} />
+          <DetailSection title="Runtime">
+            <div className="flex flex-wrap gap-2">
+              {data.restart_policy ? <InlineTag>{data.restart_policy}</InlineTag> : null}
+              {data.health ? <InlineTag>{data.health}</InlineTag> : null}
+              <InlineTag>{data.state}</InlineTag>
             </div>
-
-            <div className="flex-1 overflow-auto">
-                {activeTab === "overview" && <OverviewTab container={container} />}
-                {activeTab === "logs" && <ComingSoon feature="Logs" phase="Phase 6" />}
-                {activeTab === "inspect" && <ComingSoon feature="Inspect" phase="Phase 2" />}
-                {activeTab === "terminal" && <ComingSoon feature="Terminal" phase="Phase 6" />}
-            </div>
+          </DetailSection>
         </div>
-    );
-}
-
-function DetailHeader({ container }: { container: any }) {
-    const startMutation = useStartContainer();
-    const stopMutation = useStopContainer();
-    const restartMutation = useRestartContainer();
-    const pauseMutation = usePauseContainer();
-    const unpauseMutation = useUnpauseContainer();
-    const removeMutation = useRemoveContainer();
-
-    const isRunning = container.state.toLowerCase() === "running";
-    const isPaused = container.state.toLowerCase() === "paused";
-    const isStopped = container.state.toLowerCase() === "exited";
-
-    const handleStart = () => startMutation.mutate(container.id);
-    const handleStop = () => stopMutation.mutate(container.id);
-    const handleRestart = () => restartMutation.mutate(container.id);
-    const handlePause = () => pauseMutation.mutate(container.id);
-    const handleUnpause = () => unpauseMutation.mutate(container.id);
-    const handleRemove = () => {
-        if (confirm(`Delete container "${container.name}"? This action cannot be undone.`)) {
-            removeMutation.mutate(container.id);
-        }
-    };
-
-    return (
-        <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <StatusDot state={container.state} />
-                    <h2 className="text-[18px] font-bold" style={{ color: "var(--text-primary)" }}>
-                        {container.name}
-                    </h2>
-                    <StateBadge state={container.state} />
-                </div>
-            </div>
-
-            <div className="flex gap-2">
-                {isRunning && (
-                    <>
-                        <ActionButton variant="danger" onClick={handleStop} loading={stopMutation.isPending}>
-                            Stop
-                        </ActionButton>
-                        <ActionButton variant="warning" onClick={handlePause} loading={pauseMutation.isPending}>
-                            Pause
-                        </ActionButton>
-                        <ActionButton variant="ghost" onClick={handleRestart} loading={restartMutation.isPending}>
-                            Restart
-                        </ActionButton>
-                    </>
-                )}
-
-                {isStopped && (
-                    <>
-                        <ActionButton variant="success" onClick={handleStart} loading={startMutation.isPending}>
-                            Start
-                        </ActionButton>
-                        <ActionButton variant="danger" onClick={handleRemove} loading={removeMutation.isPending}>
-                            Remove
-                        </ActionButton>
-                    </>
-                )}
-
-                {isPaused && (
-                    <>
-                        <ActionButton variant="success" onClick={handleUnpause} loading={unpauseMutation.isPending}>
-                            Unpause
-                        </ActionButton>
-                        <ActionButton variant="danger" onClick={handleStop} loading={stopMutation.isPending}>
-                            Stop
-                        </ActionButton>
-                    </>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-    return (
-        <button
-            onClick={onClick}
-            className="px-4 py-3 text-[12px] font-medium transition-all"
-            style={{
-                background: "none",
-                border: "none",
-                borderBottom: `2px solid ${active ? "var(--blue)" : "transparent"}`,
-                color: active ? "var(--blue)" : "var(--text-muted)",
-                fontWeight: active ? 600 : 500,
-                cursor: "pointer",
-                fontFamily: "inherit",
-            }}
-        >
-            {label}
-        </button>
-    );
-}
-
-function ActionButton({ 
-    variant, 
-    onClick, 
-    loading, 
-    children 
-}: { 
-    variant: "primary" | "success" | "danger" | "warning" | "ghost"; 
-    onClick: () => void; 
-    loading?: boolean;
-    children: React.ReactNode;
-}) {
-    const styles = {
-        primary: { bg: "var(--blue)", color: "#fff", border: "var(--blue)" },
-        success: { bg: "var(--green-dim)", color: "var(--green)", border: "rgba(34, 212, 122, 0.3)" },
-        danger: { bg: "var(--red-dim)", color: "var(--red)", border: "rgba(240, 82, 82, 0.3)" },
-        warning: { bg: "var(--yellow-dim)", color: "var(--yellow)", border: "rgba(245, 166, 35, 0.3)" },
-        ghost: { bg: "transparent", color: "var(--text-secondary)", border: "var(--border)" },
-    };
-
-    const style = styles[variant];
-
-    return (
-        <button
-            onClick={onClick}
-            disabled={loading}
-            className="px-4 py-2 text-[13px] font-semibold rounded-[7px] transition-all"
-            style={{
-                background: style.bg,
-                color: style.color,
-                border: `1px solid ${style.border}`,
-                cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.6 : 1,
-                fontFamily: "inherit",
-            }}
-        >
-            {loading ? "..." : children}
-        </button>
-    );
-}
-
-function StatusDot({ state }: { state: string }) {
-    const colors: Record<string, string> = {
-        running: "var(--green)",
-        exited: "var(--red)",
-        paused: "var(--yellow)",
-    };
-
-    const color = colors[state.toLowerCase()] || "var(--text-muted)";
-    const isRunning = state.toLowerCase() === "running";
-
-    return (
-        <span
-            className="w-[10px] h-[10px] rounded-full flex-shrink-0"
-            style={{
-                background: color,
-                animation: isRunning ? "pulse-dot 2s infinite" : "none",
-                boxShadow: isRunning ? `0 0 5px ${color}` : "none",
-            }}
-        />
-    );
-}
-
-function StateBadge({ state }: { state: string }) {
-    const styles: Record<string, { bg: string; color: string }> = {
-        running: { bg: "var(--green-dim)", color: "var(--green)" },
-        exited: { bg: "var(--red-dim)", color: "var(--red)" },
-        paused: { bg: "var(--yellow-dim)", color: "var(--yellow)" },
-    };
-
-    const style = styles[state.toLowerCase()] || { bg: "var(--border)", color: "var(--text-muted)" };
-
-    return (
-        <span
-            className="text-[10px] font-semibold px-2 py-[2px] rounded-[10px] uppercase"
-            style={style}
-        >
-            {state}
-        </span>
-    );
-}
-
-function ComingSoon({ feature, phase }: { feature: string; phase: string }) {
-    return (
-        <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-                <div className="text-[32px] opacity-20 mb-2">🔜</div>
-                <div className="text-[13px] font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>
-                    {feature}
-                </div>
-                <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                    Coming in {phase}
-                </div>
-            </div>
-        </div>
-    );
+      ) : null}
+    </aside>
+  );
 }

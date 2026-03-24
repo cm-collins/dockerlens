@@ -1,52 +1,62 @@
+use std::os::unix::fs::FileTypeExt;
 use std::path::{Path, PathBuf};
 
 /// Finds the Docker socket path using a priority-ordered waterfall.
-/// Returns None if no readable socket is found.
+/// Returns None if no readable Unix socket is found.
 pub fn detect() -> Option<PathBuf> {
-    // 1. Respect explicit user override via environment variable
-    if let Some(path) = from_env() {
-        return Some(path);
-    }
-
-    // 2. Rootless Docker — user-scoped socket paths
-    if let Some(path) = rootless_paths().into_iter().find(|p| exists(p)) {
-        return Some(path);
-    }
-
-    // 3. Standard root Docker socket
-    let standard = PathBuf::from("/var/run/docker.sock");
-    if exists(&standard) {
-        return Some(standard);
-    }
-
-    None
+    candidate_paths(
+        std::env::var("DOCKER_HOST").ok().as_deref(),
+        std::env::var("XDG_RUNTIME_DIR").ok().as_deref(),
+        dirs::home_dir().as_deref(),
+    )
+    .into_iter()
+    .find(|path| is_unix_socket(path))
 }
 
-/// Reads DOCKER_HOST env var and extracts the Unix socket path if set.
-fn from_env() -> Option<PathBuf> {
-    let host = std::env::var("DOCKER_HOST").ok()?;
-    let raw_path = host.strip_prefix("unix://")?;
-    let path = PathBuf::from(raw_path);
-    exists(&path).then_some(path)
-}
-
-/// Returns candidate paths for rootless Docker installations.
-fn rootless_paths() -> Vec<PathBuf> {
+#[doc(hidden)]
+pub fn candidate_paths(
+    docker_host: Option<&str>,
+    xdg_runtime_dir: Option<&str>,
+    home_dir: Option<&Path>,
+) -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
-    // XDG_RUNTIME_DIR is the standard location for rootless Docker
-    if let Ok(dir) = std::env::var("XDG_RUNTIME_DIR") {
-        paths.push(PathBuf::from(dir).join("docker.sock"));
+    if let Some(path) = parse_docker_host(docker_host) {
+        push_unique(&mut paths, path);
     }
 
-    // Home directory fallback used by Docker's rootless installer
-    if let Some(home) = dirs::home_dir() {
-        paths.push(home.join(".docker/run/docker.sock"));
+    if let Some(runtime_dir) = xdg_runtime_dir {
+        push_unique(&mut paths, PathBuf::from(runtime_dir).join("docker.sock"));
     }
+
+    if let Some(home) = home_dir {
+        // Rootless Docker fallback used by Docker's own installer.
+        push_unique(&mut paths, home.join(".docker/run/docker.sock"));
+        // Docker Desktop for Linux uses a user-scoped socket beneath ~/.docker.
+        push_unique(&mut paths, home.join(".docker/desktop/docker.sock"));
+    }
+
+    // Some Linux packaging choices expose Docker from /run rather than /var/run.
+    push_unique(&mut paths, PathBuf::from("/run/docker.sock"));
+    push_unique(&mut paths, PathBuf::from("/var/run/docker.sock"));
 
     paths
 }
 
-fn exists(path: &Path) -> bool {
-    path.exists()
+fn parse_docker_host(docker_host: Option<&str>) -> Option<PathBuf> {
+    let host = docker_host?;
+    let raw_path = host.strip_prefix("unix://")?;
+    Some(PathBuf::from(raw_path))
+}
+
+fn push_unique(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
+    if !paths.iter().any(|existing| existing == &candidate) {
+        paths.push(candidate);
+    }
+}
+
+fn is_unix_socket(path: &Path) -> bool {
+    std::fs::metadata(path)
+        .map(|metadata| metadata.file_type().is_socket())
+        .unwrap_or(false)
 }

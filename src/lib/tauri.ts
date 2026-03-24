@@ -1,11 +1,29 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ContainerSummary } from "@/types/docker";
+import type {
+    BulkContainerAction,
+    BulkContainerActionResult,
+    ContainerDetail,
+    ContainerListQuery,
+    ContainerListResponse,
+    ContainerStatsSnapshot,
+    ContainerSummary,
+    ContainersOverviewSummary,
+} from "@/types/docker";
 
 // All Tauri IPC calls go through here.
 // Never use raw invoke() in components.
 export const docker = {
-    listContainers: (): Promise<ContainerSummary[]> =>
-        invoke("list_containers"),
+    listContainersResponse: (query?: ContainerListQuery): Promise<ContainerListResponse> =>
+        invoke("list_containers", query ? { query } : {}),
+
+    listContainers: async (): Promise<ContainerSummary[]> =>
+        (await docker.listContainersResponse()).items,
+
+    getContainersOverview: (): Promise<ContainersOverviewSummary> =>
+        invoke("get_containers_overview"),
+
+    getContainerDetail: (id: string): Promise<ContainerDetail> =>
+        invoke("get_container_detail", { id }),
 
     startContainer: (id: string): Promise<void> =>
         invoke("start_container", { id }),
@@ -25,9 +43,15 @@ export const docker = {
     removeContainer: (id: string, force = true, removeVolumes = false): Promise<void> =>
         invoke("remove_container", { id, force, removeVolumes }),
 
+    applyContainerAction: (
+        ids: string[],
+        action: BulkContainerAction,
+    ): Promise<BulkContainerActionResult[]> =>
+        invoke("apply_container_action", { ids, action }),
+
     inspectContainer: (id: string): Promise<any> =>
         invoke("inspect_container", { id }),
 
-    getContainerStats: (id: string): Promise<any> =>
+    getContainerStats: (id: string): Promise<ContainerStatsSnapshot> =>
         invoke("get_container_stats", { id }),
 };

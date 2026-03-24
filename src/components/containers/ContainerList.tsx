@@ -1,155 +1,316 @@
-import { useState } from "react";
-import { useContainers } from "@/hooks/useContainers";
+import { useDeferredValue, useEffect, useState } from "react";
+import { LayoutPanelLeft, Search } from "lucide-react";
+import { ContainerRow } from "@/components/containers/ContainerRow";
+import {
+  useApplyContainerAction,
+  useContainersResponse,
+} from "@/hooks/useContainers";
+import { getErrorMessage } from "@/lib/errors";
 import { useContainersStore } from "@/store/containers.store";
-import type { ContainerSummary } from "@/types/docker";
+
+function formatBytes(value: number) {
+  if (!value) {
+    return "0 B";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+  const scaled = value / 1024 ** index;
+  return `${scaled.toFixed(index === 0 ? 0 : 2)} ${units[index]}`;
+}
+
+function OverviewCard({
+  title,
+  value,
+  caption,
+}: {
+  title: string;
+  value: string;
+  caption: string;
+}) {
+  return (
+    <div className="rounded-[28px] border border-[rgb(var(--workspace-border))] bg-[rgb(var(--panel-bg))] px-6 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <div className="text-[15px] font-medium text-[rgb(var(--workspace-soft))]">{title}</div>
+      <div className="mt-4 text-[36px] font-semibold tracking-[-0.05em] text-[rgb(var(--workspace-foreground))]">
+        {value}
+      </div>
+      <p className="mt-2 text-[14px] text-[rgb(var(--workspace-muted))]">{caption}</p>
+    </div>
+  );
+}
 
 export function ContainerList() {
-    const [search, setSearch] = useState("");
-    const { data: containers = [], isLoading, isError } = useContainers();
-    const { selectedId, setSelectedId } = useContainersStore();
+  const { selectedId, setSelectedId } = useContainersStore();
+  const [search, setSearch] = useState("");
+  const [onlyRunning, setOnlyRunning] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [actionError, setActionError] = useState("");
+  const deferredSearch = useDeferredValue(search.trim());
+  const bulkAction = useApplyContainerAction();
+  const { data, isLoading, isError } = useContainersResponse({
+    all: true,
+    only_running: onlyRunning,
+    search: deferredSearch || null,
+  });
+  const listResponse = data ?? {
+    items: [],
+    overview: {
+      total: 0,
+      running: 0,
+      paused: 0,
+      exited: 0,
+      total_cpu_percent: 0,
+      total_memory_usage_bytes: 0,
+      total_memory_limit_bytes: 0,
+      generated_at_ms: 0,
+    },
+    total_count: 0,
+    filtered_count: 0,
+    generated_at_ms: 0,
+  };
 
-    const filtered = containers.filter(
-        (c) =>
-            c.name.toLowerCase().includes(search.toLowerCase()) ||
-            c.image.toLowerCase().includes(search.toLowerCase())
+  useEffect(() => {
+    if (selectedId && !listResponse.items.some((item) => item.id === selectedId)) {
+      setSelectedId(null);
+    }
+
+    setSelectedIds((current) =>
+      current.filter((id) => listResponse.items.some((item) => item.id === id)),
     );
+  }, [listResponse.items, selectedId, setSelectedId]);
 
-    return (
-        <div
-            className="w-[320px] flex flex-col flex-shrink-0"
-            style={{ borderRight: "1px solid var(--border)", background: "var(--bg)" }}
-        >
-            {/* Search */}
-            <div className="p-3" style={{ borderBottom: "1px solid var(--border)" }}>
-                <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search containers…"
-                    className="w-full px-3 py-2 rounded-[7px] text-[13px] outline-none transition-all"
-                    style={{
-                        background: "var(--surface)",
-                        border: "1px solid var(--border)",
-                        color: "var(--text-primary)",
-                        fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = "var(--blue)")}
-                    onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                />
-            </div>
+  const allVisibleSelected =
+    listResponse.items.length > 0 && selectedIds.length === listResponse.items.length;
 
-            {/* List */}
-            <div className="flex-1 overflow-auto">
-                {isLoading && (
-                    <div className="p-4 text-[13px]" style={{ color: "var(--text-muted)" }}>
-                        Connecting to Docker…
-                    </div>
-                )}
-
-                {isError && (
-                    <div className="p-4 text-[13px]" style={{ color: "var(--red)" }}>
-                        Failed to connect to Docker
-                    </div>
-                )}
-
-                {!isLoading && filtered.length === 0 && (
-                    <div className="p-4 text-[13px]" style={{ color: "var(--text-muted)" }}>
-                        {search ? "No containers match your search" : "No containers found"}
-                    </div>
-                )}
-
-                {filtered.map((c) => (
-                    <ContainerRow
-                        key={c.id}
-                        container={c}
-                        isSelected={selectedId === c.id}
-                        onSelect={() => setSelectedId(c.id)}
-                    />
-                ))}
-            </div>
-        </div>
+  const toggleSelection = (id: string) => {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
     );
-}
+  };
 
-function ContainerRow({ container, isSelected, onSelect }: {
-    container: ContainerSummary;
-    isSelected: boolean;
-    onSelect: () => void;
-}) {
-    const isRunning = container.state.toLowerCase() === "running";
+  const toggleAllVisible = () => {
+    setSelectedIds(allVisibleSelected ? [] : listResponse.items.map((item) => item.id));
+  };
 
-    return (
-        <button
-            onClick={onSelect}
-            className="w-full text-left px-4 py-3 cursor-pointer transition-all"
-            style={{
-                background: isSelected ? "var(--blue-glow)" : "transparent",
-                borderBottom: "1px solid var(--border)",
-                borderLeft: `3px solid ${isSelected ? "var(--blue)" : "transparent"}`,
-                fontFamily: "inherit",
-            }}
-        >
-            {/* Name row */}
-            <div className="flex items-center gap-2 mb-1">
-                <StatusDot state={container.state} />
-                <span className="text-[13px] font-semibold flex-1 truncate" style={{ color: "var(--text-primary)" }}>
-                    {container.name}
-                </span>
-                <StateBadge state={container.state} />
-            </div>
+  const handleBulkAction = async (type: "start" | "stop" | "remove") => {
+    if (!selectedIds.length) {
+      return;
+    }
 
-            {/* Image */}
-            <div className="mono text-[11px] truncate pl-[15px]" style={{ color: "var(--text-muted)" }}>
-                {container.image}
-            </div>
+    setActionError("");
 
-            {/* Status for running containers */}
-            {isRunning && (
-                <div className="flex gap-4 mt-1 pl-[15px]">
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                        {container.status}
-                    </span>
-                </div>
-            )}
-        </button>
-    );
-}
+    try {
+      await bulkAction.mutateAsync({
+        ids: selectedIds,
+        action:
+          type === "remove"
+            ? { type: "remove", force: true, remove_volumes: false }
+            : { type },
+      });
 
-function StatusDot({ state }: { state: string }) {
-    const colors: Record<string, string> = {
-        running: "var(--green)",
-        exited: "var(--red)",
-        paused: "var(--yellow)",
-    };
+      setSelectedIds([]);
+    } catch (error) {
+      setActionError(
+        getErrorMessage(
+          error,
+          "Bulk action failed. Check the Docker daemon state and the selected containers.",
+        ),
+      );
+    }
+  };
 
-    const color = colors[state.toLowerCase()] || "var(--text-muted)";
-    const isRunning = state.toLowerCase() === "running";
-
-    return (
-        <span
-            className="w-[8px] h-[8px] rounded-full flex-shrink-0"
-            style={{
-                background: color,
-                animation: isRunning ? "pulse-dot 2s infinite" : "none",
-            }}
+  return (
+    <section className="flex min-h-0 flex-1 flex-col px-4 pb-5 pt-5 sm:px-6 lg:px-10 lg:pb-8 lg:pt-8">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:gap-6">
+        <OverviewCard
+          title="Container CPU usage"
+          value={`${listResponse.overview.total_cpu_percent.toFixed(2)}%`}
+          caption={
+            listResponse.overview.running
+              ? `${listResponse.overview.running} running container${listResponse.overview.running === 1 ? "" : "s"}`
+              : "No containers are running."
+          }
         />
-    );
-}
+        <OverviewCard
+          title="Container memory usage"
+          value={formatBytes(listResponse.overview.total_memory_usage_bytes)}
+          caption={
+            listResponse.overview.total_memory_limit_bytes
+              ? `${formatBytes(listResponse.overview.total_memory_limit_bytes)} available memory tracked`
+              : "No memory limit reported yet."
+          }
+        />
+        <div className="flex items-end justify-start xl:justify-end xl:pb-2">
+          <button
+            type="button"
+            className="text-[18px] font-medium text-[rgb(var(--link))] transition hover:text-[rgb(var(--link-strong))]"
+          >
+            Show charts
+          </button>
+        </div>
+      </div>
 
-function StateBadge({ state }: { state: string }) {
-    const styles: Record<string, { bg: string; color: string }> = {
-        running: { bg: "var(--green-dim)", color: "var(--green)" },
-        exited: { bg: "var(--red-dim)", color: "var(--red)" },
-        paused: { bg: "var(--yellow-dim)", color: "var(--yellow)" },
-    };
+      <div className="mt-6 flex flex-col gap-5 xl:mt-8 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:gap-5">
+          <div className="flex h-14 w-full items-center gap-4 rounded-[20px] border border-[rgb(var(--workspace-border))] bg-[rgb(var(--panel-bg))] px-5 xl:w-[420px]">
+            <Search className="h-5 w-5 text-[rgb(var(--workspace-muted))]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search"
+              className="flex-1 bg-transparent text-[16px] text-[rgb(var(--workspace-foreground))] placeholder:text-[rgb(var(--workspace-muted))] focus:outline-none"
+            />
+          </div>
 
-    const style = styles[state.toLowerCase()] || { bg: "var(--border)", color: "var(--text-muted)" };
+          <button
+            type="button"
+            className="hidden h-14 w-14 items-center justify-center rounded-[18px] border border-[rgb(var(--workspace-border))] bg-[rgb(var(--panel-bg))] text-[rgb(var(--link))] md:flex"
+            title="Change table density"
+          >
+            <LayoutPanelLeft className="h-6 w-6" />
+          </button>
 
-    return (
-        <span
-            className="text-[10px] font-semibold px-2 py-[2px] rounded-[10px] uppercase"
-            style={style}
-        >
-            {state}
-        </span>
-    );
+          <label className="flex items-center gap-4 text-[15px] text-[rgb(var(--workspace-foreground))] sm:text-[16px]">
+            <button
+              type="button"
+              onClick={() => setOnlyRunning((value) => !value)}
+              className={`relative flex h-9 w-16 items-center rounded-full border transition ${
+                onlyRunning
+                  ? "border-[rgb(var(--link))] bg-[rgb(var(--link))]"
+                  : "border-[rgb(var(--workspace-border))] bg-[rgb(var(--workspace-card))]"
+              }`}
+              aria-label="Only show running containers"
+            >
+              <span
+                className={`h-7 w-7 rounded-full bg-white shadow transition ${
+                  onlyRunning ? "translate-x-8" : "translate-x-1"
+                }`}
+              />
+            </button>
+            <span>Only show running containers</span>
+          </label>
+        </div>
+
+        {selectedIds.length ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[14px] text-[rgb(var(--workspace-muted))]">
+              {selectedIds.length} selected
+            </span>
+            <button
+              type="button"
+              onClick={() => handleBulkAction("start")}
+              className="rounded-2xl border border-[rgb(var(--link))/0.28] bg-[rgb(var(--workspace-card))] px-4 py-2.5 text-[14px] font-semibold text-[rgb(var(--link))]"
+            >
+              Start
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkAction("stop")}
+              className="rounded-2xl border border-[rgb(var(--workspace-border))] bg-[rgb(var(--workspace-card))] px-4 py-2.5 text-[14px] font-semibold text-[rgb(var(--workspace-foreground))]"
+            >
+              Stop
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkAction("remove")}
+              className="rounded-2xl border border-[rgb(var(--danger))/0.24] bg-[rgb(var(--workspace-card))] px-4 py-2.5 text-[14px] font-semibold text-[rgb(var(--danger))]"
+            >
+              Remove
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-6 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-[rgb(var(--workspace-border))] bg-[rgb(var(--table-bg))] shadow-[0_28px_80px_rgba(3,9,20,0.32)] lg:rounded-[30px]">
+        {actionError ? (
+          <div className="border-b border-[rgb(var(--danger))/0.25] bg-[rgb(var(--danger))/0.12] px-6 py-4 text-[14px] text-[rgb(var(--danger))]">
+            {actionError}
+          </div>
+        ) : null}
+
+        <div className="min-h-0 flex-1 overflow-auto">
+          <table className="w-full border-separate border-spacing-0">
+            <thead className="sticky top-0 z-10 bg-[rgb(var(--table-bg))]">
+              <tr className="text-left text-[15px] font-semibold text-[rgb(var(--workspace-foreground))]">
+                <th className="w-[56px] border-b border-[rgb(var(--workspace-border))] px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={toggleAllVisible}
+                    className={`flex h-7 w-7 items-center justify-center rounded-[10px] border transition ${
+                      allVisibleSelected
+                        ? "border-[rgb(var(--link))] bg-[rgb(var(--link))] text-white"
+                        : "border-[rgb(var(--workspace-border))] bg-transparent text-transparent hover:border-[rgb(var(--link))]"
+                    }`}
+                    aria-label="Select all visible containers"
+                  >
+                    <span className="text-[11px] font-bold">✓</span>
+                  </button>
+                </th>
+                <th className="w-[48px] border-b border-[rgb(var(--workspace-border))] py-4" />
+                <th className="border-b border-[rgb(var(--workspace-border))] px-4 py-4">Name</th>
+                <th className="border-b border-[rgb(var(--workspace-border))] px-4 py-4">Container ID</th>
+                <th className="border-b border-[rgb(var(--workspace-border))] px-4 py-4">Image</th>
+                <th className="border-b border-[rgb(var(--workspace-border))] px-4 py-4">Port(s)</th>
+                <th className="border-b border-[rgb(var(--workspace-border))] px-4 py-4">CPU (%)</th>
+                <th className="border-b border-[rgb(var(--workspace-border))] px-4 py-4">Memory usage</th>
+                <th className="border-b border-[rgb(var(--workspace-border))] px-4 py-4 text-right">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {listResponse.items.map((container) => (
+                <ContainerRow
+                  key={container.id}
+                  container={container}
+                  checked={selectedIds.includes(container.id)}
+                  selected={selectedId === container.id}
+                  onToggleChecked={() => toggleSelection(container.id)}
+                  onSelect={() => setSelectedId(container.id)}
+                  onActionError={setActionError}
+                />
+              ))}
+            </tbody>
+          </table>
+
+          {!isLoading && !listResponse.items.length ? (
+            <div className="flex h-[280px] items-center justify-center">
+              <div className="text-center">
+                <div className="text-[20px] font-semibold text-[rgb(var(--workspace-foreground))]">
+                  No containers found
+                </div>
+                <div className="mt-2 text-[14px] text-[rgb(var(--workspace-muted))]">
+                  Adjust the search or wait for Docker to report active workloads.
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {isLoading ? (
+            <div className="flex h-[280px] items-center justify-center text-[15px] text-[rgb(var(--workspace-muted))]">
+              Loading containers...
+            </div>
+          ) : null}
+
+          {isError ? (
+            <div className="flex h-[280px] items-center justify-center text-[15px] text-[rgb(var(--danger))]">
+              Failed to load containers from Docker.
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[rgb(var(--workspace-border))] bg-[rgb(var(--table-footer-bg))] px-4 py-4 sm:px-6">
+          <div className="hidden h-1.5 w-64 rounded-full bg-[rgb(var(--workspace-border))] sm:block">
+            <div className="h-1.5 w-40 rounded-full bg-[rgb(var(--link))/0.65]" />
+          </div>
+
+          <div className="text-[16px] text-[rgb(var(--workspace-foreground))]">
+            Showing {listResponse.filtered_count} items
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }

@@ -27,12 +27,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             commands::list_containers,
+            commands::get_containers_overview,
+            commands::get_container_detail,
             commands::start_container,
             commands::stop_container,
             commands::restart_container,
             commands::pause_container,
             commands::unpause_container,
             commands::remove_container,
+            commands::apply_container_action,
             commands::inspect_container,
             commands::get_container_stats,
         ])

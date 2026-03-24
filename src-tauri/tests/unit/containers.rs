@@ -1,35 +1,61 @@
-//! Unit tests for container data transformation logic.
+//! Unit tests for container DTOs and transformation helpers.
 
-use dockerlens_lib::docker::containers::{validate_container_id, ContainerSummary, PortBinding};
+use dockerlens_lib::docker::containers::{
+    action_capabilities_for_state, browser_url_for_binding, container_detail_from_value,
+    humanize_docker_error, stats_snapshot_from_value, validate_container_id,
+    ContainerActionCapabilities, ContainerStatsSnapshot, ContainerSummary, PlatformInfo,
+    PortBinding,
+};
+use serde_json::json;
 
-// ========== Phase 1 Tests: Data Serialization ==========
-
-#[test]
-fn container_summary_serializes_to_json() {
-    let summary = ContainerSummary {
-        id: "abc123def456".to_string(),
+fn sample_summary() -> ContainerSummary {
+    ContainerSummary {
+        id: "abcdef1234567890".to_string(),
+        short_id: "abcdef123456".to_string(),
         name: "test-container".to_string(),
         image: "nginx:latest".to_string(),
         status: "Up 1 hour".to_string(),
         state: "running".to_string(),
+        state_reason: Some("running".to_string()),
+        health: Some("healthy".to_string()),
         ports: vec![],
+        platform: PlatformInfo::default(),
+        stats: None,
+        actions: ContainerActionCapabilities {
+            can_stop: true,
+            can_restart: true,
+            can_pause: true,
+            can_remove: true,
+            can_inspect: true,
+            ..Default::default()
+        },
         created: 1234567890,
-    };
+    }
+}
+
+// ========== DTO Serialization ==========
+
+#[test]
+fn container_summary_serializes_to_json() {
+    let summary = sample_summary();
 
     let json = serde_json::to_string(&summary);
     assert!(json.is_ok(), "ContainerSummary should serialize to JSON");
 
-    let json_str = json.unwrap();
-    assert!(json_str.contains("abc123def456"));
+    let json_str = json.expect("serialization checked above");
+    assert!(json_str.contains("abcdef1234567890"));
     assert!(json_str.contains("test-container"));
+    assert!(json_str.contains("short_id"));
 }
 
 #[test]
 fn port_binding_serializes_to_json() {
     let binding = PortBinding {
+        host_ip: "0.0.0.0".to_string(),
         host_port: "8080".to_string(),
         container_port: "80".to_string(),
         protocol: "tcp".to_string(),
+        browser_url: Some("http://localhost:8080".to_string()),
     };
 
     let json = serde_json::to_string(&binding);
@@ -38,30 +64,27 @@ fn port_binding_serializes_to_json() {
 
 #[test]
 fn container_summary_has_correct_fields() {
-    let summary = ContainerSummary {
-        id: "abc123".to_string(),
-        name: "test".to_string(),
-        image: "nginx".to_string(),
-        status: "Up".to_string(),
-        state: "running".to_string(),
-        ports: vec![],
-        created: 0,
-    };
+    let summary = sample_summary();
 
-    assert_eq!(summary.id, "abc123");
-    assert_eq!(summary.name, "test");
-    assert_eq!(summary.image, "nginx");
+    assert_eq!(summary.id, "abcdef1234567890");
+    assert_eq!(summary.short_id, "abcdef123456");
+    assert_eq!(summary.name, "test-container");
+    assert_eq!(summary.image, "nginx:latest");
     assert_eq!(summary.state, "running");
+    assert_eq!(summary.health.as_deref(), Some("healthy"));
 }
 
 #[test]
 fn port_binding_has_correct_fields() {
     let binding = PortBinding {
+        host_ip: "127.0.0.1".to_string(),
         host_port: "3000".to_string(),
         container_port: "3000".to_string(),
         protocol: "tcp".to_string(),
+        browser_url: Some("http://127.0.0.1:3000".to_string()),
     };
 
+    assert_eq!(binding.host_ip, "127.0.0.1");
     assert_eq!(binding.host_port, "3000");
     assert_eq!(binding.container_port, "3000");
     assert_eq!(binding.protocol, "tcp");
@@ -69,28 +92,23 @@ fn port_binding_has_correct_fields() {
 
 #[test]
 fn container_summary_with_multiple_ports() {
-    let ports = vec![
+    let mut summary = sample_summary();
+    summary.ports = vec![
         PortBinding {
+            host_ip: "0.0.0.0".to_string(),
             host_port: "8080".to_string(),
             container_port: "80".to_string(),
             protocol: "tcp".to_string(),
+            browser_url: Some("http://localhost:8080".to_string()),
         },
         PortBinding {
+            host_ip: "0.0.0.0".to_string(),
             host_port: "8443".to_string(),
             container_port: "443".to_string(),
             protocol: "tcp".to_string(),
+            browser_url: Some("http://localhost:8443".to_string()),
         },
     ];
-
-    let summary = ContainerSummary {
-        id: "abc123".to_string(),
-        name: "web".to_string(),
-        image: "nginx".to_string(),
-        status: "Up".to_string(),
-        state: "running".to_string(),
-        ports,
-        created: 0,
-    };
 
     assert_eq!(summary.ports.len(), 2);
     assert_eq!(summary.ports[0].host_port, "8080");
@@ -99,37 +117,20 @@ fn container_summary_with_multiple_ports() {
 
 #[test]
 fn container_summary_with_empty_ports() {
-    let summary = ContainerSummary {
-        id: "abc123".to_string(),
-        name: "test".to_string(),
-        image: "alpine".to_string(),
-        status: "Up".to_string(),
-        state: "running".to_string(),
-        ports: vec![],
-        created: 0,
-    };
-
+    let summary = sample_summary();
     assert!(summary.ports.is_empty());
 }
 
 #[test]
 fn container_summary_debug_format() {
-    let summary = ContainerSummary {
-        id: "abc123".to_string(),
-        name: "test".to_string(),
-        image: "nginx".to_string(),
-        status: "Up".to_string(),
-        state: "running".to_string(),
-        ports: vec![],
-        created: 0,
-    };
+    let summary = sample_summary();
 
     let debug_str = format!("{:?}", summary);
-    assert!(debug_str.contains("abc123"));
-    assert!(debug_str.contains("test"));
+    assert!(debug_str.contains("abcdef1234567890"));
+    assert!(debug_str.contains("test-container"));
 }
 
-// ========== Phase 2 Tests: Input Validation ==========
+// ========== Input Validation ==========
 
 #[test]
 fn validate_container_id_accepts_valid_ids() {
@@ -144,7 +145,10 @@ fn validate_container_id_accepts_valid_ids() {
 fn validate_container_id_rejects_empty() {
     let result = validate_container_id("");
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "Container ID cannot be empty");
+    assert_eq!(
+        result.expect_err("error checked above"),
+        "Container ID cannot be empty"
+    );
 }
 
 #[test]
@@ -152,7 +156,10 @@ fn validate_container_id_rejects_too_long() {
     let long_id = "a".repeat(129);
     let result = validate_container_id(&long_id);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "Container ID exceeds maximum length");
+    assert_eq!(
+        result.expect_err("error checked above"),
+        "Container ID exceeds maximum length"
+    );
 }
 
 #[test]
@@ -226,59 +233,189 @@ fn validate_container_id_129_chars_fails() {
     assert!(validate_container_id(&id).is_err());
 }
 
-// ========== Phase 2 Tests: Port Binding Edge Cases ==========
+// ========== New Phase 2 Helper Tests ==========
 
 #[test]
-fn port_binding_with_udp_protocol() {
-    let binding = PortBinding {
-        host_port: "5353".to_string(),
-        container_port: "53".to_string(),
-        protocol: "udp".to_string(),
-    };
+fn action_capabilities_for_running_container_enable_expected_actions() {
+    let actions = action_capabilities_for_state("running", true);
 
-    assert_eq!(binding.protocol, "udp");
+    assert!(actions.can_stop);
+    assert!(actions.can_restart);
+    assert!(actions.can_pause);
+    assert!(actions.can_remove);
+    assert!(actions.can_inspect);
+    assert!(actions.can_open_port);
+    assert!(!actions.can_start);
+    assert!(!actions.can_unpause);
 }
 
 #[test]
-fn port_binding_with_empty_host_port() {
-    let binding = PortBinding {
-        host_port: "".to_string(),
-        container_port: "80".to_string(),
-        protocol: "tcp".to_string(),
-    };
+fn action_capabilities_for_paused_container_enable_unpause() {
+    let actions = action_capabilities_for_state("paused", false);
 
-    assert_eq!(binding.host_port, "");
-}
-
-// ========== Phase 2 Tests: Container Summary Edge Cases ==========
-
-#[test]
-fn container_summary_with_exited_state() {
-    let summary = ContainerSummary {
-        id: "abc123".to_string(),
-        name: "stopped".to_string(),
-        image: "alpine".to_string(),
-        status: "Exited (0) 2 days ago".to_string(),
-        state: "exited".to_string(),
-        ports: vec![],
-        created: 1234567890,
-    };
-
-    assert_eq!(summary.state, "exited");
-    assert!(summary.status.contains("Exited"));
+    assert!(actions.can_unpause);
+    assert!(actions.can_stop);
+    assert!(actions.can_remove);
+    assert!(!actions.can_pause);
+    assert!(!actions.can_open_port);
 }
 
 #[test]
-fn container_summary_with_paused_state() {
-    let summary = ContainerSummary {
-        id: "abc123".to_string(),
-        name: "paused".to_string(),
-        image: "nginx".to_string(),
-        status: "Up 1 hour (Paused)".to_string(),
-        state: "paused".to_string(),
-        ports: vec![],
-        created: 1234567890,
-    };
+fn browser_url_uses_localhost_for_wildcard_host() {
+    let url = browser_url_for_binding("0.0.0.0", "8080", "tcp");
+    assert_eq!(url.as_deref(), Some("http://localhost:8080"));
+}
 
-    assert_eq!(summary.state, "paused");
+#[test]
+fn browser_url_preserves_specific_host() {
+    let url = browser_url_for_binding("127.0.0.1", "3000", "tcp");
+    assert_eq!(url.as_deref(), Some("http://127.0.0.1:3000"));
+}
+
+#[test]
+fn browser_url_is_none_without_public_port() {
+    let url = browser_url_for_binding("", "", "tcp");
+    assert!(url.is_none());
+}
+
+#[test]
+fn humanize_docker_error_explains_missing_bind_mount_path() {
+    let message = humanize_docker_error(
+        "start",
+        "container demo",
+        "Docker responded with status code 400: invalid mount config for type \"bind\": bind source path does not exist: /tmp/demo",
+    );
+
+    assert!(message.contains("host bind mount path does not exist"));
+    assert!(message.contains("/tmp/demo"));
+}
+
+#[test]
+fn humanize_docker_error_explains_permission_denied() {
+    let message = humanize_docker_error(
+        "stop",
+        "container demo",
+        "error while connecting to Docker: permission denied",
+    );
+
+    assert!(message.contains("permission denied"));
+    assert!(message.contains("access the Docker socket"));
+}
+
+#[test]
+fn humanize_docker_error_explains_missing_container() {
+    let message = humanize_docker_error(
+        "inspect",
+        "container demo",
+        "Docker responded with status code 404: No such container: demo",
+    );
+
+    assert!(message.contains("no longer exists"));
+}
+
+#[test]
+fn humanize_docker_error_explains_daemon_unavailable() {
+    let message = humanize_docker_error(
+        "list",
+        "containers",
+        "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?",
+    );
+
+    assert!(message.contains("Docker is unavailable"));
+    assert!(message.contains("daemon is running"));
+}
+
+#[test]
+fn stats_snapshot_from_value_calculates_cpu_memory_and_network_totals() {
+    let snapshot = stats_snapshot_from_value(&json!({
+        "cpu_stats": {
+            "cpu_usage": { "total_usage": 200, "percpu_usage": [100, 100] },
+            "system_cpu_usage": 1000,
+            "online_cpus": 2
+        },
+        "precpu_stats": {
+            "cpu_usage": { "total_usage": 100 },
+            "system_cpu_usage": 500
+        },
+        "memory_stats": {
+            "usage": 256,
+            "limit": 1024
+        },
+        "networks": {
+            "eth0": { "rx_bytes": 10, "tx_bytes": 20 },
+            "eth1": { "rx_bytes": 5, "tx_bytes": 15 }
+        }
+    }));
+
+    assert_eq!(snapshot.cpu_percent, Some(40.0));
+    assert_eq!(snapshot.memory_usage_bytes, Some(256));
+    assert_eq!(snapshot.memory_limit_bytes, Some(1024));
+    assert_eq!(snapshot.memory_percent, Some(25.0));
+    assert_eq!(snapshot.network_rx_bytes, Some(15));
+    assert_eq!(snapshot.network_tx_bytes, Some(35));
+}
+
+#[test]
+fn container_detail_from_value_extracts_typed_fields() {
+    let detail = container_detail_from_value(
+        &json!({
+            "Id": "abcdef1234567890",
+            "Name": "/demo",
+            "Image": "sha256:123",
+            "Platform": "linux/amd64",
+            "State": {
+                "Status": "running",
+                "Health": { "Status": "healthy" }
+            },
+            "Config": {
+                "Image": "nginx:latest",
+                "Env": ["FOO=bar", "EMPTY"],
+                "Labels": { "com.example.service": "api" }
+            },
+            "HostConfig": {
+                "RestartPolicy": { "Name": "always" }
+            },
+            "Mounts": [
+                {
+                    "Source": "/host",
+                    "Destination": "/data",
+                    "Mode": "z",
+                    "RW": true,
+                    "Type": "bind"
+                }
+            ],
+            "NetworkSettings": {
+                "Networks": {
+                    "bridge": {
+                        "IPAddress": "172.17.0.2",
+                        "Gateway": "172.17.0.1",
+                        "MacAddress": "02:42:ac:11:00:02"
+                    }
+                },
+                "Ports": {
+                    "80/tcp": [{ "HostIp": "0.0.0.0", "HostPort": "8080" }],
+                    "443/tcp": null
+                }
+            }
+        }),
+        Some(ContainerStatsSnapshot {
+            cpu_percent: Some(12.5),
+            ..Default::default()
+        }),
+    );
+
+    assert_eq!(detail.id, "abcdef1234567890");
+    assert_eq!(detail.short_id, "abcdef123456");
+    assert_eq!(detail.name, "demo");
+    assert_eq!(detail.image, "nginx:latest");
+    assert_eq!(detail.image_id, "sha256:123");
+    assert_eq!(detail.health.as_deref(), Some("healthy"));
+    assert_eq!(detail.restart_policy.as_deref(), Some("always"));
+    assert_eq!(detail.env.len(), 2);
+    assert_eq!(detail.labels.len(), 1);
+    assert_eq!(detail.mounts.len(), 1);
+    assert_eq!(detail.networks.len(), 1);
+    assert_eq!(detail.ports.len(), 2);
+    assert!(detail.actions.can_open_port);
+    assert_eq!(detail.stats.and_then(|stats| stats.cpu_percent), Some(12.5));
 }

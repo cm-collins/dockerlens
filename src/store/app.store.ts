@@ -1,6 +1,18 @@
 import { create } from "zustand";
 
-type Screen = "containers" | "images" | "volumes" | "networks" | "suggestions" | "settings";
+export type Screen =
+  | "containers"
+  | "images"
+  | "volumes"
+  | "builds"
+  | "dockerHub"
+  | "scout"
+  | "kubernetes"
+  | "models"
+  | "toolkit"
+  | "extensions"
+  | "suggestions"
+  | "settings";
 
 interface AppStore {
     screen: Screen;
