@@ -1,3 +1,3 @@
-mod socket_detection;
-mod docker_client;
 mod commands;
+mod docker_client;
+mod socket_detection;

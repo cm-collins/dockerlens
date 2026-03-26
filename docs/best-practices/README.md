@@ -33,6 +33,8 @@ pnpm run lint          # tsc --noEmit (see package.json)
 pnpm run test          # currently: production UI build gate
 ```
 
+Current note: Azure DevOps CI carries a temporary ignore list for known upstream Tauri/GTK RustSec advisories so new findings still fail the build without permanently redlining the pipeline.
+
 **Not wired in this repo yet:** Vitest/ESLint/Prettier, `cargo geiger`, `cargo deny` — see `REACT-TYPESCRIPT.md` / `RUST.md` when you add them.
 
 ### Run before every release

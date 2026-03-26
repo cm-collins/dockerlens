@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Finds the Docker socket path using a priority-ordered waterfall.
 /// Returns None if no readable socket is found.
@@ -9,7 +9,7 @@ pub fn detect() -> Option<PathBuf> {
     }
 
     // 2. Rootless Docker — user-scoped socket paths
-    if let Some(path) = rootless_paths().into_iter().find(exists) {
+    if let Some(path) = rootless_paths().into_iter().find(|p| exists(p)) {
         return Some(path);
     }
 
@@ -47,6 +47,6 @@ fn rootless_paths() -> Vec<PathBuf> {
     paths
 }
 
-fn exists(path: &PathBuf) -> bool {
+fn exists(path: &Path) -> bool {
     path.exists()
 }
