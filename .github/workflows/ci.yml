@@ -40,6 +40,21 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install system deps for native GLib/GObject builds
+        # Must run before cargo builds that require pkg-config and GLib dev .pc files
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            pkg-config \
+            libglib2.0-dev \
+            libgirepository1.0-dev \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libatk1.0-dev \
+            libgdk-pixbuf2.0-dev \
+            libssl-dev
+
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
 
