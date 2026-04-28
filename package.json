@@ -13,7 +13,7 @@
     "version:bump": "bash scripts/bump-version.sh"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.0",
+    "@supabase/supabase-js": "^2.105.1",
     "@tailwindcss/vite": "^4.2.4",
     "@tanstack/react-query": "^5.100.5",
     "@tauri-apps/api": "^2",
